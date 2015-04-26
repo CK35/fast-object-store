@@ -59,6 +59,7 @@ public class ObjectNodeReaderTest {
 			assertNull(reader.read());
 			assertEquals(4, reader.getIgnoredObjects());
 		}
+		Files.delete(tempFile);
 	}
 
 }

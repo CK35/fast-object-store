@@ -127,8 +127,8 @@ public class FilesystemBucket implements Bucket, Closeable {
 				   					   .resolve(Integer.toString(timestamp.getDayOfMonth()) + DAY_FILE_SUFFIX);
 	}
 	
-	public static void clearDirectory(Path dir) throws IOException {
-		Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
+	public static void clearDirectory(final Path root) throws IOException {
+		Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 				Files.delete(file);
@@ -136,13 +136,13 @@ public class FilesystemBucket implements Bucket, Closeable {
 			}
 			@Override
 			public FileVisitResult postVisitDirectory(Path dir, IOException e) throws IOException {
-				if (e == null) {
-					Files.delete(dir);
-					return FileVisitResult.CONTINUE;
-				} else {
-					// directory iteration failed
+				if( e != null) {					
 					throw e;
 				}
+				if(!root.equals(dir)) {					
+					Files.delete(dir);
+				}
+				return FileVisitResult.CONTINUE;
 			}
 		});
 	}
