@@ -8,8 +8,8 @@ import org.joda.time.Interval;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import de.ck35.objectstore.api.Bucket;
-import de.ck35.objectstore.api.ObjectNodeStream;
 import de.ck35.objectstore.api.StoredObjectNode;
+import de.ck35.objectstore.api.StoredObjectNodeCallable;
 
 public class BucketCommand<T> {
 
@@ -22,17 +22,26 @@ public class BucketCommand<T> {
 	}
 	
 	public T getResult() {
+		await();
+		return resultReference.get();
+	}
+	
+	public void await() {
 		try {			
 			resultLatch.await();
 		} catch(InterruptedException e) {
 			throw new RuntimeException("Could not await result. Calling Thread has been interrupted.", e);
 		}
-		return resultReference.get();
 	}
 	
-	public void setResult(T result) {
-		resultReference.set(result);
+	public void commandCompleted() {
 		resultLatch.countDown();
+	}
+	
+	@SuppressWarnings("unchecked")
+	public void setResult(Object result) {
+		resultReference.set((T)result);
+		commandCompleted();
 	}
 	
 	public static class ListBucketsCommand extends BucketCommand<Iterable<Bucket>> {
@@ -72,15 +81,17 @@ public class BucketCommand<T> {
 		}
 	}
 	
-	public static class ReadCommand extends BucketCommand<ObjectNodeStream> {
+	public static class ReadCommand extends BucketCommand<Void> {
 		
 		private final String bucketName;
 		private final Interval interval;
+		private final StoredObjectNodeCallable callable;
 		
-		public ReadCommand(String bucketName, Interval interval) {
+		public ReadCommand(String bucketName, Interval interval, StoredObjectNodeCallable callable) {
 			super();
 			this.bucketName = bucketName;
 			this.interval = interval;
+			this.callable = callable;
 		}
 		
 		public String getBucketName() {
@@ -88,6 +99,9 @@ public class BucketCommand<T> {
 		}
 		public Interval getInterval() {
 			return interval;
+		}
+		public StoredObjectNodeCallable getCallable() {
+			return callable;
 		}
 		@Override
 		public String toString() {

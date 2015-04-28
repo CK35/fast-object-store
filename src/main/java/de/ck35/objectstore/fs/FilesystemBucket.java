@@ -7,10 +7,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Objects;
 
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.Interval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +20,7 @@ import com.google.common.base.Function;
 
 import de.ck35.objectstore.api.Bucket;
 import de.ck35.objectstore.api.StoredObjectNode;
+import de.ck35.objectstore.api.StoredObjectNodeCallable;
 
 public class FilesystemBucket implements Bucket, Closeable {
 	
@@ -28,20 +30,21 @@ public class FilesystemBucket implements Bucket, Closeable {
 
 	private final BucketData bucketData;
 	
-	private final Map<Path, ObjectNodeWriter> writers;
+	private final LRUCache<Path, ObjectNodeWriter> writers;
 	private final Function<ObjectNode, DateTime> timestampFunction;
 	private final Function<Path, ObjectNodeWriter> writerFactory;
 	private final Function<Path, ObjectNodeReader> readerFactory;
 
 	public FilesystemBucket(BucketData bucketData,
-	                  Function<ObjectNode, DateTime> timestampFunction,
-	                  Function<Path, ObjectNodeWriter> writerFactory,
-	                  Function<Path, ObjectNodeReader> readerFactory) {
+	                  	    Function<ObjectNode, DateTime> timestampFunction,
+	                  	    Function<Path, ObjectNodeWriter> writerFactory,
+	                  	    Function<Path, ObjectNodeReader> readerFactory,
+	                  	    LRUCache<Path, ObjectNodeWriter> writers) {
 		this.bucketData = bucketData;
 		this.timestampFunction = timestampFunction;
 		this.writerFactory = writerFactory;
 		this.readerFactory = readerFactory;
-		this.writers = new HashMap<>();
+		this.writers = writers;
 	}
 	
 	@Override
@@ -58,16 +61,62 @@ public class FilesystemBucket implements Bucket, Closeable {
 	
 	@Override
 	public void close() throws IOException {
-		for(ObjectNodeWriter writer : writers.values()) {
+		for(ObjectNodeWriter writer : writers) {
 			try {				
 				writer.close();
 			} catch (IOException e) {
 				LOG.warn("Error while closing writer for path: '{}'.", writer.getPath(), e);
 			}
 		}
+		writers.clear();
 	}
 	
-	public StoredObjectNode write(DateTime timestamp, ObjectNode objectNode) throws IOException {
+	public void read(Interval interval, StoredObjectNodeCallable callable) throws IOException {
+		DateTime start = interval.getStart().withZone(DateTimeZone.UTC);
+		DateTime end = interval.getEnd().withZone(DateTimeZone.UTC);
+		for(DateTime current = start ; current.isBefore(end) ; current = current.plusMinutes(1)) {
+			Path dayFile = resolveDayFile(current);
+			if(Files.isRegularFile(dayFile)) {
+				try(StoredObjectNodeReader reader = createReader(dayFile)) {
+					current = read(current, end, reader, callable);
+				}
+			} else {
+				Path minuteFile = resolveMinuteFile(current);
+				if(Files.isRegularFile(minuteFile)) {
+					ObjectNodeWriter writer = writers.remove(minuteFile);
+					if(writer != null) {
+						writer.close();
+					}
+					try(StoredObjectNodeReader reader = createReader(minuteFile)) {
+						current = read(current, end, reader, callable);
+					}
+				}
+			}
+		}
+	}
+	
+	protected DateTime read(DateTime start, DateTime end, StoredObjectNodeReader reader, StoredObjectNodeCallable callable) throws IOException {
+		DateTime current = start;
+		for(StoredObjectNode next = reader.read() ; next != null ; next = reader.read()) {
+			current = next.getTimestamp();
+			if(current.isBefore(start)) {
+				continue;
+			}
+			if(current.isEqual(end) || current.isAfter(end)) {
+				return current;
+			}
+			current = next.getTimestamp();
+			callable.call(next);
+		}
+		return current;
+	}
+	
+	protected StoredObjectNodeReader createReader(Path path) {
+		return new StoredObjectNodeReader(this, readerFactory.apply(path), timestampFunction);
+	}
+	
+	public StoredObjectNode write(ObjectNode objectNode) throws IOException {
+		DateTime timestamp = Objects.requireNonNull(timestampFunction.apply(objectNode)).withZone(DateTimeZone.UTC);
 		Path minuteFile = resolveMinuteFile(timestamp);
 		ObjectNodeWriter writer = writers.get(minuteFile);
 		if(writer == null) {
@@ -91,7 +140,7 @@ public class FilesystemBucket implements Bucket, Closeable {
 				throw new IOException("Could not cleanup existing tmp dir:" + tmpDir + " for minute file expansion!", e);
 			}
 		}
-		try(StoredObjectNodeReader reader = new StoredObjectNodeReader(this, readerFactory.apply(dayFile), timestampFunction)) {
+		try(StoredObjectNodeReader reader = createReader(dayFile)) {
 			ObjectNodeWriter writer = null;
 			try {
 				for(StoredObjectNode storedNode = reader.read(); storedNode != null ; storedNode = reader.read()) {

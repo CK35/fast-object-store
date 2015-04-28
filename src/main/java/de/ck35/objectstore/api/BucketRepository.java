@@ -8,7 +8,7 @@ public interface BucketRepository {
 
 	Iterable<Bucket> listBuckets();
 	
-	ObjectNodeStream read(String bucketName, Interval interval);
+	void read(String bucketName, Interval interval, StoredObjectNodeCallable callable);
 	
 	StoredObjectNode wirte(String bucketName, String bucketType, ObjectNode node);
 	

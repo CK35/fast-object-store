@@ -1,6 +1,7 @@
 package de.ck35.objectstore.fs;
 
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
@@ -12,7 +13,7 @@ public class DateTimeFunction implements Function<ObjectNode, DateTime> {
 	private static final DateTimeFormatter DEFAULT_FORMATTER = ISODateTimeFormat.dateTimeParser()
 																				.withOffsetParsed()
 																				.withZoneUTC();
-	private static final String DEFAULT_TIMESTAMP_FILED_NAME = "timestamp";
+	protected static final String DEFAULT_TIMESTAMP_FILED_NAME = "timestamp";
 	
 	private final DateTimeFormatter formatter;
 	private final String timestampFieldName;
@@ -34,7 +35,7 @@ public class DateTimeFunction implements Function<ObjectNode, DateTime> {
 		if(dateTimeText.isEmpty()) {
 			throw new IllegalArgumentException("Empty String for timestamp in invalid!");
 		}
-		return formatter.parseDateTime(dateTimeText);
+		return formatter.parseDateTime(dateTimeText).withZone(DateTimeZone.UTC);
 	}
 	
 }

@@ -8,10 +8,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import de.ck35.objectstore.api.Bucket;
 import de.ck35.objectstore.api.BucketRepository;
-import de.ck35.objectstore.api.ObjectNodeStream;
 import de.ck35.objectstore.api.StoredObjectNode;
+import de.ck35.objectstore.api.StoredObjectNodeCallable;
 import de.ck35.objectstore.fs.BucketCommand.ListBucketsCommand;
-import de.ck35.objectstore.fs.BucketCommand.ReadCommand;
 import de.ck35.objectstore.fs.BucketCommand.WriteCommand;
 
 public class FilesystemBucketRepository implements BucketRepository {
@@ -32,11 +31,6 @@ public class FilesystemBucketRepository implements BucketRepository {
 	}
 	
 	@Override
-	public ObjectNodeStream read(String bucketName, Interval interval) {
-		return appendCommand(new ReadCommand(bucketName, interval)).getResult();
-	}
-	
-	@Override
 	public Iterable<Bucket> listBuckets() {
 		return appendCommand(new ListBucketsCommand()).getResult();
 	}
@@ -44,6 +38,11 @@ public class FilesystemBucketRepository implements BucketRepository {
 	@Override
 	public StoredObjectNode wirte(String bucketName, String bucketType, ObjectNode node) {
 		return appendCommand(new WriteCommand(bucketName, bucketType, node)).getResult();
+	}
+
+	@Override
+	public void read(String bucketName, Interval interval, StoredObjectNodeCallable callable) {
+		
 	}
 
 }

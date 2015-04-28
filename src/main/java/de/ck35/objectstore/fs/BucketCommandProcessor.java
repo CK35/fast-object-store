@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
 
 import de.ck35.objectstore.api.Bucket;
+import de.ck35.objectstore.api.StoredObjectNode;
 import de.ck35.objectstore.fs.BucketCommand.ListBucketsCommand;
 import de.ck35.objectstore.fs.BucketCommand.ReadCommand;
 import de.ck35.objectstore.fs.BucketCommand.WriteCommand;
@@ -27,17 +28,15 @@ public class BucketCommandProcessor implements Runnable {
 	private static final Logger LOG = LoggerFactory.getLogger(BucketCommandProcessor.class);
 
 	private final Path basePath;
-	private final Function<ObjectNode, DateTime> dateTimeFunction;
 	private final Function<BucketData, FilesystemBucket> pathBucketFactory;
 	
 	private final BlockingQueue<BucketCommand<?>> commands;
 
 	public BucketCommandProcessor(Path basePath,
-	                        Function<ObjectNode, DateTime> dateTimeFunction,
-	                        Function<BucketData, FilesystemBucket> pathBucketFactory, 
-	                        BlockingQueue<BucketCommand<?>> commands) {
+								  Function<ObjectNode, DateTime> dateTimeFunction,
+	                        	  Function<BucketData, FilesystemBucket> pathBucketFactory, 
+	                        	  BlockingQueue<BucketCommand<?>> commands) {
 		this.basePath = basePath;
-		this.dateTimeFunction = dateTimeFunction;
 		this.pathBucketFactory = pathBucketFactory;
 		this.commands = commands;
 	}
@@ -86,24 +85,25 @@ public class BucketCommandProcessor implements Runnable {
 	
 	public void runCommand(BucketCommand<?> command, Context context) {
 		if(command instanceof WriteCommand) {
-			runWriteCommand((WriteCommand) command, context);
+			command.setResult(runWriteCommand((WriteCommand) command, context));
 			
 		} else if(command instanceof ReadCommand) {
 			runReadCommand((ReadCommand) command, context);
+			command.commandCompleted();
 			
 		} else if(command instanceof ListBucketsCommand) {
-			((ListBucketsCommand) command).setResult(new ArrayList<Bucket>(context.getBuckets().values()));
+			command.setResult(runListBucketsCommand((ListBucketsCommand) command, context));
 			
 		} else {
-			throw new IllegalStateException("Unknown command!");
+			throw new IllegalArgumentException("Unknown command!");
 		}
 	}
 	
-	public void runWriteCommand(WriteCommand command, Context context) {
-		DateTime timestamp = dateTimeFunction.apply(command.getNode());
-		if(timestamp == null) {
-			throw new IllegalArgumentException("No timestamp found inside object!");
-		}
+	public Iterable<Bucket> runListBucketsCommand(ListBucketsCommand command, Context context) {
+		return new ArrayList<Bucket>(context.getBuckets().values());
+	}
+	
+	public StoredObjectNode runWriteCommand(WriteCommand command, Context context) {
 		FilesystemBucket bucket = context.getBuckets().get(command.getBucketName());
 		if(bucket == null) {
 			BucketData bucketData;
@@ -116,14 +116,22 @@ public class BucketCommandProcessor implements Runnable {
 			context.getBuckets().put(command.getBucketName(), bucket);
 		}
 		try {
-			bucket.write(timestamp, command.getNode());
+			return bucket.write(command.getNode());
 		} catch (IOException e) {
 			throw new RuntimeException("Writing object into bucket failed!", e);
 		}
 	}
 	
 	public void runReadCommand(ReadCommand command, Context context) {
-		
+		FilesystemBucket bucket = context.getBuckets().get(command.getBucketName());
+		if(bucket == null) {
+			return;
+		}
+		try {
+			bucket.read(command.getInterval(), command.getCallable());
+		} catch (IOException e) {
+			throw new RuntimeException("Reading from bucket failed!", e);
+		}
 	}
 	
 	public static void close(Iterable<FilesystemBucket> buckets) {
