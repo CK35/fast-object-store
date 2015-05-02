@@ -1,4 +1,4 @@
-package de.ck35.objectstore.fs;
+package de.ck35.metricstore.fs;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;

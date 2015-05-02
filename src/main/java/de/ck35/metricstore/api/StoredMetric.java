@@ -1,12 +1,12 @@
-package de.ck35.objectstore.api;
+package de.ck35.metricstore.api;
 
 import org.joda.time.DateTime;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-public interface StoredObjectNode {
+public interface StoredMetric {
 
-	Bucket getBucket();
+	MetricBucket getMetricBucket();
 	
 	DateTime getTimestamp();
 	

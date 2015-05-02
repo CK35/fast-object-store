@@ -1,4 +1,4 @@
-package de.ck35.objectstore.fs;
+package de.ck35.metricstore.fs;
 
 import java.io.BufferedOutputStream;
 import java.io.Closeable;
@@ -15,6 +15,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Charsets;
+import com.google.common.base.Function;
 
 public class ObjectNodeWriter implements Closeable {
 
@@ -75,4 +76,21 @@ public class ObjectNodeWriter implements Closeable {
 		}
 	}
 	
+	public static class Factory implements Function<Path, ObjectNodeWriter> {
+
+		private final JsonFactory jsonFactory;
+		
+		public Factory(JsonFactory jsonFactory) {
+			this.jsonFactory = jsonFactory;
+		}
+		
+		@Override
+		public ObjectNodeWriter apply(Path input) {
+			try {				
+				return input == null ? null : new ObjectNodeWriter(input, jsonFactory);
+			} catch(IOException e) {
+				throw new IllegalArgumentException("Could not create writer for path: '" + input + "'!", e);
+			}
+		}
+	}
 }

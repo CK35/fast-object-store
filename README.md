@@ -1,1 +1,1 @@
-# fast-object-store
+# metric-store

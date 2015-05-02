@@ -1,4 +1,4 @@
-package de.ck35.objectstore.fs;
+package de.ck35.metricstore.util;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -7,6 +7,8 @@ import org.junit.Test;
 
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableSet;
+
+import de.ck35.metricstore.util.LRUCache;
 
 public class LRUCacheTest {
 

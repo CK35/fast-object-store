@@ -1,19 +1,14 @@
-package de.ck35.objectstore.fs;
+package de.ck35.metricstore.fs;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.zip.GZIPOutputStream;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -26,8 +21,10 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import de.ck35.objectstore.fs.configuration.ObjectMapperConfiguration;
+import de.ck35.metricstore.fs.ObjectNodeReader;
+import de.ck35.metricstore.fs.configuration.ObjectMapperConfiguration;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes={ObjectMapperConfiguration.class})
@@ -44,18 +41,15 @@ public class ObjectNodeReaderTest {
 		LOG.debug("Working on tempfile: '{}'.", tempFile);
 		Resource resource = resourceLoader.getResource("classpath:read-test-files/read-test.json");
 		assertTrue(resource.toString() + " is not readable!", resource.isReadable());
-		try(InputStream in = new BufferedInputStream(Files.newInputStream(Paths.get(resource.getURI())));
-			OutputStream out = new BufferedOutputStream(Files.newOutputStream(tempFile));
-			GZIPOutputStream gzOut = new GZIPOutputStream(out)) {
-			for(int next = in.read() ; next != -1 ; next = in.read()) {
-				gzOut.write(next);
-			}
-		}
+		GzipUtils.gzip(Paths.get(resource.getURI()), tempFile);
 		assertTrue(Files.size(tempFile) > 0);
 		try(ObjectNodeReader reader = new ObjectNodeReader(tempFile, mapper)) {
-			assertNotNull(reader.read());
-			assertNotNull(reader.read());
-			assertNotNull(reader.read());
+			ObjectNode node1 = reader.read();
+			ObjectNode node2 = reader.read();
+			ObjectNode node3 = reader.read();
+			assertNotNull(node1);
+			assertNotNull(node2);
+			assertNotNull(node3);
 			assertNull(reader.read());
 			assertEquals(4, reader.getIgnoredObjects());
 		}

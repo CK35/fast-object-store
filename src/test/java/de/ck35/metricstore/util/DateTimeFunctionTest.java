@@ -1,6 +1,6 @@
-package de.ck35.objectstore.fs;
+package de.ck35.metricstore.util;
 
-import static de.ck35.objectstore.fs.DateTimeFunction.DEFAULT_TIMESTAMP_FILED_NAME;
+import static de.ck35.metricstore.util.DateTimeFunction.DEFAULT_TIMESTAMP_FILED_NAME;
 import static org.junit.Assert.*;
 
 import java.util.Map;
@@ -13,6 +13,8 @@ import org.junit.Test;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableMap;
+
+import de.ck35.metricstore.util.DateTimeFunction;
 
 public class DateTimeFunctionTest {
 

@@ -1,4 +1,4 @@
-package de.ck35.objectstore.fs;
+package de.ck35.metricstore.fs;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
@@ -7,9 +7,9 @@ import org.joda.time.Interval;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import de.ck35.objectstore.api.Bucket;
-import de.ck35.objectstore.api.StoredObjectNode;
-import de.ck35.objectstore.api.StoredObjectNodeCallable;
+import de.ck35.metricstore.api.MetricBucket;
+import de.ck35.metricstore.api.StoredMetric;
+import de.ck35.metricstore.api.StoredMetricCallable;
 
 public class BucketCommand<T> {
 
@@ -44,7 +44,7 @@ public class BucketCommand<T> {
 		commandCompleted();
 	}
 	
-	public static class ListBucketsCommand extends BucketCommand<Iterable<Bucket>> {
+	public static class ListBucketsCommand extends BucketCommand<Iterable<MetricBucket>> {
 		
 		public ListBucketsCommand() {
 			super();
@@ -55,7 +55,7 @@ public class BucketCommand<T> {
 		}
 	}
 	
-	public static class WriteCommand extends BucketCommand<StoredObjectNode> {
+	public static class WriteCommand extends BucketCommand<StoredMetric> {
 		
 		private final String bucketName;
 		private final String bucketType;
@@ -85,9 +85,9 @@ public class BucketCommand<T> {
 		
 		private final String bucketName;
 		private final Interval interval;
-		private final StoredObjectNodeCallable callable;
+		private final StoredMetricCallable callable;
 		
-		public ReadCommand(String bucketName, Interval interval, StoredObjectNodeCallable callable) {
+		public ReadCommand(String bucketName, Interval interval, StoredMetricCallable callable) {
 			super();
 			this.bucketName = bucketName;
 			this.interval = interval;
@@ -100,7 +100,7 @@ public class BucketCommand<T> {
 		public Interval getInterval() {
 			return interval;
 		}
-		public StoredObjectNodeCallable getCallable() {
+		public StoredMetricCallable getCallable() {
 			return callable;
 		}
 		@Override

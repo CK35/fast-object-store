@@ -1,4 +1,4 @@
-package de.ck35.objectstore.fs.configuration;
+package de.ck35.metricstore.fs.configuration;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

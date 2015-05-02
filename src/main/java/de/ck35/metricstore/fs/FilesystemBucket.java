@@ -1,4 +1,4 @@
-package de.ck35.objectstore.fs;
+package de.ck35.metricstore.fs;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -18,11 +18,12 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
 
-import de.ck35.objectstore.api.Bucket;
-import de.ck35.objectstore.api.StoredObjectNode;
-import de.ck35.objectstore.api.StoredObjectNodeCallable;
+import de.ck35.metricstore.api.MetricBucket;
+import de.ck35.metricstore.api.StoredMetric;
+import de.ck35.metricstore.api.StoredMetricCallable;
+import de.ck35.metricstore.util.LRUCache;
 
-public class FilesystemBucket implements Bucket, Closeable {
+public class FilesystemBucket implements MetricBucket, Closeable {
 	
 	private static final String DAY_FILE_SUFFIX = ".day";
 
@@ -71,7 +72,7 @@ public class FilesystemBucket implements Bucket, Closeable {
 		writers.clear();
 	}
 	
-	public void read(Interval interval, StoredObjectNodeCallable callable) throws IOException {
+	public void read(Interval interval, StoredMetricCallable callable) throws IOException {
 		DateTime start = interval.getStart().withZone(DateTimeZone.UTC);
 		DateTime end = interval.getEnd().withZone(DateTimeZone.UTC);
 		for(DateTime current = start ; current.isBefore(end) ; current = current.plusMinutes(1)) {
@@ -95,9 +96,9 @@ public class FilesystemBucket implements Bucket, Closeable {
 		}
 	}
 	
-	protected DateTime read(DateTime start, DateTime end, StoredObjectNodeReader reader, StoredObjectNodeCallable callable) throws IOException {
+	protected DateTime read(DateTime start, DateTime end, StoredObjectNodeReader reader, StoredMetricCallable callable) throws IOException {
 		DateTime current = start;
-		for(StoredObjectNode next = reader.read() ; next != null ; next = reader.read()) {
+		for(StoredMetric next = reader.read() ; next != null ; next = reader.read()) {
 			current = next.getTimestamp();
 			if(current.isBefore(start)) {
 				continue;
@@ -115,7 +116,7 @@ public class FilesystemBucket implements Bucket, Closeable {
 		return new StoredObjectNodeReader(this, readerFactory.apply(path), timestampFunction);
 	}
 	
-	public StoredObjectNode write(ObjectNode objectNode) throws IOException {
+	public StoredMetric write(ObjectNode objectNode) throws IOException {
 		DateTime timestamp = Objects.requireNonNull(timestampFunction.apply(objectNode)).withZone(DateTimeZone.UTC);
 		Path minuteFile = resolveMinuteFile(timestamp);
 		ObjectNodeWriter writer = writers.get(minuteFile);
@@ -143,7 +144,7 @@ public class FilesystemBucket implements Bucket, Closeable {
 		try(StoredObjectNodeReader reader = createReader(dayFile)) {
 			ObjectNodeWriter writer = null;
 			try {
-				for(StoredObjectNode storedNode = reader.read(); storedNode != null ; storedNode = reader.read()) {
+				for(StoredMetric storedNode = reader.read(); storedNode != null ; storedNode = reader.read()) {
 					Path path = resolveMinuteFile(storedNode.getTimestamp());
 					if(writer == null || !path.equals(writer.getPath())) {
 						if(writer != null) {

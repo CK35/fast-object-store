@@ -1,4 +1,4 @@
-package de.ck35.objectstore.fs;
+package de.ck35.metricstore.fs;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -10,20 +10,20 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
 
-import de.ck35.objectstore.api.Bucket;
-import de.ck35.objectstore.api.StoredObjectNode;
+import de.ck35.metricstore.api.MetricBucket;
+import de.ck35.metricstore.api.StoredMetric;
 
 public class StoredObjectNodeReader implements Closeable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StoredObjectNodeReader.class);
 	
-	private final Bucket bucket;
+	private final MetricBucket bucket;
 	private final ObjectNodeReader reader;
 	private final Function<ObjectNode, DateTime> timestampFunction;
 
 	private int ignoredObjects;
 	
-	public StoredObjectNodeReader(Bucket bucket,
+	public StoredObjectNodeReader(MetricBucket bucket,
 	                              ObjectNodeReader reader,
 	                              Function<ObjectNode, DateTime> timestampFunction) {
 		this.bucket = bucket;
@@ -31,7 +31,7 @@ public class StoredObjectNodeReader implements Closeable {
  		this.timestampFunction = timestampFunction;
 	}
 
-	public StoredObjectNode read() throws IOException {
+	public StoredMetric read() throws IOException {
 		ObjectNode objectNode = reader.read();
 		if(objectNode == null) {
 			return null;
@@ -53,23 +53,23 @@ public class StoredObjectNodeReader implements Closeable {
 		this.reader.close();
 	}
 	
-	public static StoredObjectNode storedObjectNode(Bucket bucket, DateTime timestamp, ObjectNode objectNode) {
+	public static StoredMetric storedObjectNode(MetricBucket bucket, DateTime timestamp, ObjectNode objectNode) {
 		return new ImmutableStoredObjectNode(bucket, timestamp, objectNode);
 	}
-	private static class ImmutableStoredObjectNode implements StoredObjectNode {
+	private static class ImmutableStoredObjectNode implements StoredMetric {
 		
-		private final Bucket bucket;
+		private final MetricBucket bucket;
 		private final DateTime timestamp;
 		private final ObjectNode objectNode;
 		
-		public ImmutableStoredObjectNode(Bucket bucket, DateTime timestamp, ObjectNode objectNode) {
+		public ImmutableStoredObjectNode(MetricBucket bucket, DateTime timestamp, ObjectNode objectNode) {
 			this.bucket = bucket;
 			this.timestamp = timestamp;
 			this.objectNode = objectNode;
 		}
 
 		@Override
-		public Bucket getBucket() {
+		public MetricBucket getMetricBucket() {
 			return bucket;
 		}
 		@Override

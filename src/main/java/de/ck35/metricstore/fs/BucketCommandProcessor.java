@@ -1,4 +1,4 @@
-package de.ck35.objectstore.fs;
+package de.ck35.metricstore.fs;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -17,11 +17,11 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
 
-import de.ck35.objectstore.api.Bucket;
-import de.ck35.objectstore.api.StoredObjectNode;
-import de.ck35.objectstore.fs.BucketCommand.ListBucketsCommand;
-import de.ck35.objectstore.fs.BucketCommand.ReadCommand;
-import de.ck35.objectstore.fs.BucketCommand.WriteCommand;
+import de.ck35.metricstore.api.MetricBucket;
+import de.ck35.metricstore.api.StoredMetric;
+import de.ck35.metricstore.fs.BucketCommand.ListBucketsCommand;
+import de.ck35.metricstore.fs.BucketCommand.ReadCommand;
+import de.ck35.metricstore.fs.BucketCommand.WriteCommand;
 
 public class BucketCommandProcessor implements Runnable {
 	
@@ -99,11 +99,11 @@ public class BucketCommandProcessor implements Runnable {
 		}
 	}
 	
-	public Iterable<Bucket> runListBucketsCommand(ListBucketsCommand command, Context context) {
-		return new ArrayList<Bucket>(context.getBuckets().values());
+	public Iterable<MetricBucket> runListBucketsCommand(ListBucketsCommand command, Context context) {
+		return new ArrayList<MetricBucket>(context.getBuckets().values());
 	}
 	
-	public StoredObjectNode runWriteCommand(WriteCommand command, Context context) {
+	public StoredMetric runWriteCommand(WriteCommand command, Context context) {
 		FilesystemBucket bucket = context.getBuckets().get(command.getBucketName());
 		if(bucket == null) {
 			BucketData bucketData;

@@ -13,6 +13,6 @@
         <appender-ref ref="appender-console"/>
     </root>
     
-    <logger level="DEBUG" name="de.ck35.objectstore" />
+    <logger level="DEBUG" name="de.ck35.metricstore" />
     
 </configuration>

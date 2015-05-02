@@ -1,4 +1,4 @@
-package de.ck35.objectstore.fs;
+package de.ck35.metricstore.util;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
