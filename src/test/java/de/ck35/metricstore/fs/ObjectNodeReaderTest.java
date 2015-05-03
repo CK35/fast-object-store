@@ -51,7 +51,7 @@ public class ObjectNodeReaderTest {
 			assertNotNull(node2);
 			assertNotNull(node3);
 			assertNull(reader.read());
-			assertEquals(4, reader.getIgnoredObjects());
+			assertEquals(4, reader.getIgnoredObjectsCount());
 		}
 		Files.delete(tempFile);
 	}

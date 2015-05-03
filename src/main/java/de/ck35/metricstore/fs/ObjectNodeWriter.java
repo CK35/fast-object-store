@@ -17,39 +17,49 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 
+import de.ck35.metricstore.util.MetricsIOException;
+
 public class ObjectNodeWriter implements Closeable {
 
 	private final Path path;
 	private final JsonGenerator generator;
 	private final BufferedOutputStream outputStream;
 	
-	public ObjectNodeWriter(Path path, JsonFactory factory) throws IOException {
+	public ObjectNodeWriter(Path path, JsonFactory factory) throws MetricsIOException {
 		this(path, factory, Charsets.UTF_8, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 	}
-	public ObjectNodeWriter(Path path, JsonFactory factory, Charset charset, OpenOption ... options) throws IOException {
+	public ObjectNodeWriter(Path path, JsonFactory factory, Charset charset, OpenOption ... options) throws MetricsIOException {
 		this.path = path;
 		boolean closeOnError = true;
-		this.outputStream = new BufferedOutputStream(Files.newOutputStream(path, options));
-		try {
-			OutputStreamWriter writer = new OutputStreamWriter(new GZIPOutputStream(outputStream), charset);
+		try {			
+			this.outputStream = new BufferedOutputStream(Files.newOutputStream(path, options));
 			try {
-				this.generator = factory.createGenerator(writer);
-				closeOnError = false;
+				OutputStreamWriter writer = new OutputStreamWriter(new GZIPOutputStream(outputStream), charset);
+				try {
+					this.generator = factory.createGenerator(writer);
+					closeOnError = false;
+				} finally {
+					if(closeOnError) {
+						writer.close();
+					}
+				}
 			} finally {
 				if(closeOnError) {
-					writer.close();
+					outputStream.close();
 				}
 			}
-		} finally {
-			if(closeOnError) {
-				outputStream.close();
-			}
+		} catch(IOException e) {
+			throw new MetricsIOException("Could not create writer for: '" + path + "'!", e);
 		}
 	}
 
-	public void write(ObjectNode node) throws IOException {
-		generator.writeRaw('\n');
-		generator.writeObject(node);
+	public void write(ObjectNode node) throws MetricsIOException {
+		try {
+			generator.writeRaw('\n');
+			generator.writeObject(node);			
+		} catch(IOException e) {
+			throw new MetricsIOException("Could not append next object node to: '" + path + "'!", e);
+		}
 	}
 	
 	public Path getPath() {
@@ -83,14 +93,9 @@ public class ObjectNodeWriter implements Closeable {
 		public Factory(JsonFactory jsonFactory) {
 			this.jsonFactory = jsonFactory;
 		}
-		
 		@Override
 		public ObjectNodeWriter apply(Path input) {
-			try {				
-				return input == null ? null : new ObjectNodeWriter(input, jsonFactory);
-			} catch(IOException e) {
-				throw new IllegalArgumentException("Could not create writer for path: '" + input + "'!", e);
-			}
+			return input == null ? null : new ObjectNodeWriter(input, jsonFactory);
 		}
 	}
 }

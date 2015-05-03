@@ -21,7 +21,7 @@ public class StoredObjectNodeReader implements Closeable {
 	private final ObjectNodeReader reader;
 	private final Function<ObjectNode, DateTime> timestampFunction;
 
-	private int ignoredObjects;
+	private int ignoredObjectsCount;
 	
 	public StoredObjectNodeReader(MetricBucket bucket,
 	                              ObjectNodeReader reader,
@@ -31,21 +31,21 @@ public class StoredObjectNodeReader implements Closeable {
  		this.timestampFunction = timestampFunction;
 	}
 
-	public StoredMetric read() throws IOException {
+	public StoredMetric read() {
 		ObjectNode objectNode = reader.read();
 		if(objectNode == null) {
 			return null;
 		}
 		DateTime timestamp = timestampFunction.apply(objectNode);
 		if(timestamp == null) {
-			ignoredObjects++;
+			ignoredObjectsCount++;
 			LOG.warn("Missing timestamp inside object node: '{}' in file: '{}'.", objectNode, reader.getPath());
 		}
 		return storedObjectNode(bucket, timestamp, objectNode);
 	}
 	
-	public int getIgnoredObjects() {
-		return ignoredObjects + reader.getIgnoredObjects();
+	public int getIgnoredObjectsCount() {
+		return ignoredObjectsCount + reader.getIgnoredObjectsCount();
 	}
 	
 	@Override

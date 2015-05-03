@@ -22,10 +22,12 @@ import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
 import de.ck35.metricstore.api.StoredMetricCallable;
 import de.ck35.metricstore.util.LRUCache;
+import de.ck35.metricstore.util.MetricsIOException;
 
 public class FilesystemBucket implements MetricBucket, Closeable {
 	
 	private static final String DAY_FILE_SUFFIX = ".day";
+	private static final String TMP_DAY_FOLDER_SUFFIX = "-tmp";
 
 	private static final Logger LOG = LoggerFactory.getLogger(FilesystemBucket.class);
 
@@ -72,31 +74,35 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 		writers.clear();
 	}
 	
-	public void read(Interval interval, StoredMetricCallable callable) throws IOException {
-		DateTime start = interval.getStart().withZone(DateTimeZone.UTC);
-		DateTime end = interval.getEnd().withZone(DateTimeZone.UTC);
-		for(DateTime current = start ; current.isBefore(end) ; current = current.plusMinutes(1)) {
-			Path dayFile = resolveDayFile(current);
-			if(Files.isRegularFile(dayFile)) {
-				try(StoredObjectNodeReader reader = createReader(dayFile)) {
-					current = read(current, end, reader, callable);
-				}
-			} else {
-				Path minuteFile = resolveMinuteFile(current);
-				if(Files.isRegularFile(minuteFile)) {
-					ObjectNodeWriter writer = writers.remove(minuteFile);
-					if(writer != null) {
-						writer.close();
-					}
-					try(StoredObjectNodeReader reader = createReader(minuteFile)) {
+	public void read(Interval interval, StoredMetricCallable callable) {
+		try {
+			DateTime start = interval.getStart().withZone(DateTimeZone.UTC);
+			DateTime end = interval.getEnd().withZone(DateTimeZone.UTC);
+			for(DateTime current = start ; current.isBefore(end) ; current = current.plusMinutes(1)) {
+				Path dayFile = resolveDayFile(current);
+				if(Files.isRegularFile(dayFile)) {
+					try(StoredObjectNodeReader reader = createReader(dayFile)) {
 						current = read(current, end, reader, callable);
+					}
+				} else {
+					Path minuteFile = resolveMinuteFile(current);
+					if(Files.isRegularFile(minuteFile)) {
+						ObjectNodeWriter writer = writers.remove(minuteFile);
+						if(writer != null) {
+							writer.close();
+						}
+						try(StoredObjectNodeReader reader = createReader(minuteFile)) {
+							current = read(current, end, reader, callable);
+						}
 					}
 				}
 			}
+		} catch(IOException e) {
+			throw new MetricsIOException("Could not close a resource while reading from bucket: '" + bucketData + "'!", e);
 		}
 	}
 	
-	protected DateTime read(DateTime start, DateTime end, StoredObjectNodeReader reader, StoredMetricCallable callable) throws IOException {
+	protected DateTime read(DateTime start, DateTime end, StoredObjectNodeReader reader, StoredMetricCallable callable) {
 		DateTime current = start;
 		for(StoredMetric next = reader.read() ; next != null ; next = reader.read()) {
 			current = next.getTimestamp();
@@ -116,7 +122,7 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 		return new StoredObjectNodeReader(this, readerFactory.apply(path), timestampFunction);
 	}
 	
-	public StoredMetric write(ObjectNode objectNode) throws IOException {
+	public StoredMetric write(ObjectNode objectNode) {
 		DateTime timestamp = Objects.requireNonNull(timestampFunction.apply(objectNode)).withZone(DateTimeZone.UTC);
 		Path minuteFile = resolveMinuteFile(timestamp);
 		ObjectNodeWriter writer = writers.get(minuteFile);
@@ -125,6 +131,11 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 			if(Files.isRegularFile(dayFile)) {
 				expand(dayFile, minuteFile);
 			}
+			try {
+				Files.createDirectories(minuteFile.getParent());
+			} catch (IOException e) {
+				throw new MetricsIOException("Could not create day directories for minute file: '" + minuteFile + "'!", e);
+			}
 			writer = writerFactory.apply(minuteFile);
 			writers.put(minuteFile, writer);
 		}
@@ -132,43 +143,59 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 		return StoredObjectNodeReader.storedObjectNode(this, timestamp, objectNode);
 	}
 	
-	public void expand(Path dayFile, Path minuteFile) throws IOException {
-		Path tmpDir = minuteFile.getParent().getParent().resolve(minuteFile.getParent() + "-tmp");
+	public void expand(Path dayFile, Path minuteFile) {
+		Path tmpDir = resolveTMPDayFolder(minuteFile);
 		if(Files.isDirectory(tmpDir)) {			
+			clearDirectory(tmpDir);
+		} else {
 			try {
-				clearDirectory(tmpDir);
+				Files.createDirectories(tmpDir);
 			} catch (IOException e) {
-				throw new IOException("Could not cleanup existing tmp dir:" + tmpDir + " for minute file expansion!", e);
+				throw new MetricsIOException("Could not create tmp directory: '" + tmpDir + "' for day file expansion!", e);
 			}
 		}
-		try(StoredObjectNodeReader reader = createReader(dayFile)) {
-			ObjectNodeWriter writer = null;
-			try {
-				for(StoredMetric storedNode = reader.read(); storedNode != null ; storedNode = reader.read()) {
-					Path path = resolveMinuteFile(storedNode.getTimestamp());
-					if(writer == null || !path.equals(writer.getPath())) {
-						if(writer != null) {
-							writer.close();
+		try {
+			try(StoredObjectNodeReader reader = createReader(dayFile)) {
+				ObjectNodeWriter writer = null;
+				try {
+					for(StoredMetric storedNode = reader.read(); storedNode != null ; storedNode = reader.read()) {
+						Path path = resolveMinuteFileInsideDayDir(tmpDir, storedNode.getTimestamp());
+						if(writer == null || !path.equals(writer.getPath())) {
+							if(writer != null) {
+								writer.close();
+							}
+							writer = writerFactory.apply(path);
 						}
-						writer = writerFactory.apply(path);
+						writer.write(storedNode.getObjectNode());
 					}
-					writer.write(storedNode.getObjectNode());
-				}
-			} finally {
-				if(writer != null) {
-					writer.close();
+				} finally {
+					if(writer != null) {
+						writer.close();
+					}
 				}
 			}
+		} catch(IOException e) {
+			throw new MetricsIOException("Expanding day file: '" + dayFile + "' failed. Could not close a resource!", e);
 		}
-		Files.move(tmpDir, minuteFile.getParent());
-		Files.delete(dayFile);
+		try {			
+			Files.move(tmpDir, minuteFile.getParent());
+		} catch(IOException e) {
+			throw new MetricsIOException("Expanding day file: '" + dayFile + "' failed. Renaming tmp day folder failed!", e);
+		}
+		try {			
+			Files.delete(dayFile);
+		} catch(IOException e) {
+			throw new MetricsIOException("Expanding day file: '" + dayFile + "' failed. Deleting old day file failed!", e);
+		}
 	}
 	
 	public Path resolveMinuteFile(DateTime timestamp) {
-		return bucketData.getBasePath().resolve(Integer.toString(timestamp.getYear()))
-									   .resolve(Integer.toString(timestamp.getMonthOfYear()))
-									   .resolve(Integer.toString(timestamp.getDayOfMonth()))
-									   .resolve(Integer.toString(timestamp.getMinuteOfDay()));
+		return resolveMinuteFileInsideDayDir(bucketData.getBasePath().resolve(Integer.toString(timestamp.getYear()))
+											   						 .resolve(Integer.toString(timestamp.getMonthOfYear()))
+											   						 .resolve(Integer.toString(timestamp.getDayOfMonth())), timestamp);
+	}
+	protected Path resolveMinuteFileInsideDayDir(Path dayDir, DateTime timestamp) {
+		return dayDir.resolve(Integer.toString(timestamp.getMinuteOfDay()));
 	}
 	
 	public Path resolveDayFile(DateTime timestamp) {
@@ -177,23 +204,37 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 				   					   .resolve(Integer.toString(timestamp.getDayOfMonth()) + DAY_FILE_SUFFIX);
 	}
 	
-	public static void clearDirectory(final Path root) throws IOException {
-		Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
-			@Override
-			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-				Files.delete(file);
-				return FileVisitResult.CONTINUE;
-			}
-			@Override
-			public FileVisitResult postVisitDirectory(Path dir, IOException e) throws IOException {
-				if( e != null) {					
-					throw e;
+	public Path resolveTMPDayFolder(Path minuteFile) {
+		return minuteFile.getParent().getParent().resolve(minuteFile.getParent() + TMP_DAY_FOLDER_SUFFIX);
+	}
+	
+	/**
+	 * Delete all files and folders inside the given root directory. The given directory
+	 * will not be deleted.
+	 * 
+	 * @param root The directory to clean.
+	 */
+	public static void clearDirectory(final Path root) {
+		try {			
+			Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
+				@Override
+				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+					Files.delete(file);
+					return FileVisitResult.CONTINUE;
 				}
-				if(!root.equals(dir)) {					
-					Files.delete(dir);
+				@Override
+				public FileVisitResult postVisitDirectory(Path dir, IOException exception) throws IOException {
+					if(exception != null) {					
+						throw exception;
+					}
+					if(!root.equals(dir)) {					
+						Files.delete(dir);
+					}
+					return FileVisitResult.CONTINUE;
 				}
-				return FileVisitResult.CONTINUE;
-			}
-		});
+			});
+		} catch(IOException e) {
+			throw new MetricsIOException("Could not clean direcotry: '" + root + "'!", e);
+		}
 	}
 }

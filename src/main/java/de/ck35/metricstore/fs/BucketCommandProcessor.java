@@ -22,6 +22,7 @@ import de.ck35.metricstore.api.StoredMetric;
 import de.ck35.metricstore.fs.BucketCommand.ListBucketsCommand;
 import de.ck35.metricstore.fs.BucketCommand.ReadCommand;
 import de.ck35.metricstore.fs.BucketCommand.WriteCommand;
+import de.ck35.metricstore.util.MetricsIOException;
 
 public class BucketCommandProcessor implements Runnable {
 	
@@ -79,7 +80,7 @@ public class BucketCommandProcessor implements Runnable {
 				}
 			};
 		} catch (IOException e) {
-			throw new RuntimeException("Initializing context failed!", e); 
+			throw new MetricsIOException("Initializing context failed!", e); 
 		}
 	}
 	
@@ -115,11 +116,7 @@ public class BucketCommandProcessor implements Runnable {
 			bucket = pathBucketFactory.apply(bucketData);
 			context.getBuckets().put(command.getBucketName(), bucket);
 		}
-		try {
-			return bucket.write(command.getNode());
-		} catch (IOException e) {
-			throw new RuntimeException("Writing object into bucket failed!", e);
-		}
+		return bucket.write(command.getNode());
 	}
 	
 	public void runReadCommand(ReadCommand command, Context context) {
@@ -127,11 +124,7 @@ public class BucketCommandProcessor implements Runnable {
 		if(bucket == null) {
 			return;
 		}
-		try {
-			bucket.read(command.getInterval(), command.getCallable());
-		} catch (IOException e) {
-			throw new RuntimeException("Reading from bucket failed!", e);
-		}
+		bucket.read(command.getInterval(), command.getCallable());
 	}
 	
 	public static void close(Iterable<FilesystemBucket> buckets) {
