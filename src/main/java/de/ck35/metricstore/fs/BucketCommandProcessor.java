@@ -19,6 +19,7 @@ import com.google.common.base.Function;
 
 import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
+import de.ck35.metricstore.fs.BucketCommand.CompressCommand;
 import de.ck35.metricstore.fs.BucketCommand.ListBucketsCommand;
 import de.ck35.metricstore.fs.BucketCommand.ReadCommand;
 import de.ck35.metricstore.fs.BucketCommand.WriteCommand;
@@ -95,6 +96,10 @@ public class BucketCommandProcessor implements Runnable {
 		} else if(command instanceof ListBucketsCommand) {
 			command.setResult(runListBucketsCommand((ListBucketsCommand) command, context));
 			
+		} else if(command instanceof CompressCommand) {
+			runCompressCommand((CompressCommand) command, context);
+			command.commandCompleted();
+			
 		} else {
 			throw new IllegalArgumentException("Unknown command!");
 		}
@@ -125,6 +130,14 @@ public class BucketCommandProcessor implements Runnable {
 			return;
 		}
 		bucket.read(command.getInterval(), command.getCallable());
+	}
+	
+	public void runCompressCommand(CompressCommand command, Context context) {
+		FilesystemBucket bucket = context.getBuckets().get(command.getBucketName());
+		if(bucket == null) {
+			return;
+		}
+		bucket.compressAll(command.getCompressUntil());
 	}
 	
 	public static void close(Iterable<FilesystemBucket> buckets) {

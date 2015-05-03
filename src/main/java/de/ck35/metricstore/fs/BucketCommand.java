@@ -4,6 +4,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.joda.time.Interval;
+import org.joda.time.LocalDate;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
@@ -88,7 +89,6 @@ public class BucketCommand<T> {
 		private final StoredMetricCallable callable;
 		
 		public ReadCommand(String bucketName, Interval interval, StoredMetricCallable callable) {
-			super();
 			this.bucketName = bucketName;
 			this.interval = interval;
 			this.callable = callable;
@@ -106,6 +106,27 @@ public class BucketCommand<T> {
 		@Override
 		public String toString() {
 			return "ReadCommand [bucketName=" + bucketName + ", interval=" + interval + "]";
+		}
+	}
+	
+	public static class CompressCommand extends BucketCommand<Void> {
+		
+		private final String bucketName;
+		private final LocalDate compressUntil;
+
+		public CompressCommand(String bucketName, LocalDate compressUntil) {
+			this.bucketName = bucketName;
+			this.compressUntil = compressUntil;
+		}
+		public String getBucketName() {
+			return bucketName;
+		}
+		public LocalDate getCompressUntil() {
+			return compressUntil;
+		}
+		@Override
+		public String toString() {
+			return "CompressCommand [compressUntil=" + compressUntil + "]";
 		}
 	}
 }

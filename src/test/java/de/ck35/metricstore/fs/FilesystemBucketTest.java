@@ -280,6 +280,27 @@ public class FilesystemBucketTest {
 	}
 	
 	@Test
+	public void testAppendExisting() throws IOException {
+		try(FilesystemBucket bucket = filesystemBucket()) {	
+			Path minuteFile = bucket.resolveMinuteFile(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC));
+			Files.createDirectories(minuteFile.getParent());
+			try(ObjectNodeWriter writer = writerFactory.apply(minuteFile)) {
+				writer.write(node(new LocalDateTime(2015, 1, 1, 0, 0).toString(), "fieldA", "valueA1"));
+			}
+			bucket.write(node(new LocalDateTime(2015, 1, 1, 0, 0).toString(), "fieldA", "valueA2"));
+		}
+		
+		List<StoredMetric> result;
+		try(FilesystemBucket bucket = filesystemBucket()) {
+			result = readMetrics(bucket, new Interval(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC), Period.minutes(1)), 2);
+		}
+		assertEquals(new DateTime(2015,1,1,0,0, DateTimeZone.UTC), result.get(0).getTimestamp());
+		assertEquals(new DateTime(2015,1,1,0,0, DateTimeZone.UTC), result.get(1).getTimestamp());
+		assertEquals("valueA1", result.get(0).getObjectNode().path("fieldA").asText());
+		assertEquals("valueA2", result.get(1).getObjectNode().path("fieldA").asText());
+	}
+	
+	@Test
 	public void testClearDirectory() throws IOException {
 		Path directory = Files.createTempDirectory("clearTest");
 		LOG.debug("Using dir: '{}' for clear test.", directory);

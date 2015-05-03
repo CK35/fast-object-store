@@ -1,22 +1,36 @@
 package de.ck35.metricstore.fs;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.DirectoryStream;
+import java.nio.file.DirectoryStream.Filter;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
+import org.joda.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
+import com.google.common.collect.Lists;
 
 import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
@@ -27,7 +41,7 @@ import de.ck35.metricstore.util.MetricsIOException;
 public class FilesystemBucket implements MetricBucket, Closeable {
 	
 	private static final String DAY_FILE_SUFFIX = ".day";
-	private static final String TMP_DAY_FOLDER_SUFFIX = "-tmp";
+	private static final String TMP_SUFFIX = "-tmp";
 
 	private static final Logger LOG = LoggerFactory.getLogger(FilesystemBucket.class);
 
@@ -189,11 +203,61 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 		}
 	}
 	
+	public void compressAll(LocalDate until) {
+		Function<Path, Integer> pathToIntFunction = new PathToIntFunction(); 
+		for(Path yearDir : listChildsSortedByNumericName(bucketData.getBasePath(), true)) {
+			for(Path monthDir : listChildsSortedByNumericName(bucketData.getBasePath(), true)) {
+				for(Path dayDir : listChildsSortedByNumericName(bucketData.getBasePath(), true)) {
+					LocalDate currentDay = new LocalDate(pathToIntFunction.apply(yearDir), 
+					                                     pathToIntFunction.apply(monthDir), 
+					                                     pathToIntFunction.apply(dayDir));
+					if(currentDay.isBefore(until)) {
+						compress(dayDir);
+					}
+				}
+			}
+		}
+	}
+	
+	public void compress(Path dayDir) {
+		Path tmpDayFile = resolveTMPDayFile(dayDir);
+		Path dayFile = resolveDayFile(dayDir);
+		try(OutputStream out = Files.newOutputStream(tmpDayFile);
+			GZIPOutputStream gzout = new GZIPOutputStream(new BufferedOutputStream(out))) {
+			for(Path minuteFile : listChildsSortedByNumericName(dayDir, false)) {
+				ObjectNodeWriter writer = writers.remove(minuteFile);
+				if(writer != null) {
+					writer.close();
+				}
+				try(InputStream in = Files.newInputStream(minuteFile);
+					GZIPInputStream gzin = new GZIPInputStream(new BufferedInputStream(in))) {
+					for(int next = gzin.read() ; next != -1 ; next = gzin.read()) {
+						gzout.write(next);
+					}
+				}
+			}
+		} catch(IOException e) {
+			throw new MetricsIOException("Could not create compressed day file: '" + tmpDayFile + "'!", e);
+		}
+		try {
+			Files.move(tmpDayFile, dayFile, StandardCopyOption.REPLACE_EXISTING);
+		} catch (IOException e) {
+			throw new MetricsIOException("Could not rename tmp day file: '" + tmpDayFile + "' to: '" + dayFile + "'!", e);
+		}
+		clearDirectory(dayDir);
+		try {
+			Files.delete(dayDir);
+		} catch (IOException e) {
+			throw new MetricsIOException("Could not delete old day folder: '" + dayDir + "'!", e);
+		}
+	}
+	
 	public Path resolveMinuteFile(DateTime timestamp) {
 		return resolveMinuteFileInsideDayDir(bucketData.getBasePath().resolve(Integer.toString(timestamp.getYear()))
 											   						 .resolve(Integer.toString(timestamp.getMonthOfYear()))
 											   						 .resolve(Integer.toString(timestamp.getDayOfMonth())), timestamp);
 	}
+	
 	protected Path resolveMinuteFileInsideDayDir(Path dayDir, DateTime timestamp) {
 		return dayDir.resolve(Integer.toString(timestamp.getMinuteOfDay()));
 	}
@@ -204,8 +268,16 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 				   					   .resolve(Integer.toString(timestamp.getDayOfMonth()) + DAY_FILE_SUFFIX);
 	}
 	
-	public Path resolveTMPDayFolder(Path minuteFile) {
-		return minuteFile.getParent().getParent().resolve(minuteFile.getParent() + TMP_DAY_FOLDER_SUFFIX);
+	protected Path resolveTMPDayFolder(Path minuteFile) {
+		return minuteFile.getParent().getParent().resolve(minuteFile.getParent().getFileName() + TMP_SUFFIX);
+	}
+	
+	protected Path resolveDayFile(Path dayFolder) {
+		return dayFolder.getParent().resolve(dayFolder.getFileName() + DAY_FILE_SUFFIX);
+	}
+	
+	protected Path resolveTMPDayFile(Path dayFolder) {
+		return resolveDayFile(dayFolder).getParent().resolve(dayFolder.getFileName() + TMP_SUFFIX);
 	}
 	
 	/**
@@ -235,6 +307,59 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 			});
 		} catch(IOException e) {
 			throw new MetricsIOException("Could not clean direcotry: '" + root + "'!", e);
+		}
+	}
+	
+	public static List<Path> listChildsSortedByNumericName(Path parent, boolean directories) {
+		Function<Path, Integer> function = new PathToIntFunction();
+		Filter<Path> filter = new IntBasedFileTypePredicate(directories, function);
+		try(DirectoryStream<Path> stream = Files.newDirectoryStream(parent, filter)) {
+			List<Path> content = Lists.newArrayList(stream);
+			Collections.sort(content, new IntBasedComparator(function));
+			return content;
+		} catch(IOException e) {
+			throw new MetricsIOException("Could not list content of: '" + parent + "'!", e);
+		}
+	}
+	
+	public static class PathToIntFunction implements Function<Path, Integer> {
+		@Override
+		public Integer apply(Path input) {
+			return input == null ? null : Integer.parseInt(input.getFileName().toString());
+		}
+	}
+	public static class IntBasedFileTypePredicate implements Filter<Path> {
+		
+		private final boolean directories;
+		private final Function<Path, Integer> intFunction;
+		
+		public IntBasedFileTypePredicate(boolean directories, Function<Path, Integer> intFunction) {
+			this.directories = directories;
+			this.intFunction = intFunction;
+		}
+		@Override
+		public boolean accept(Path entry) throws IOException {
+			if((directories && Files.isDirectory(entry)) || (!directories && Files.isRegularFile(entry))) {
+				try {						
+					intFunction.apply(entry);
+					return true;
+				} catch(NumberFormatException e) {
+					return false;
+				}
+			}
+			return false;
+		}
+	}
+	public static class IntBasedComparator implements Comparator<Path> {
+		
+		private final Function<Path, Integer> intFunction;
+		
+		public IntBasedComparator(Function<Path, Integer> intFunction) {
+			this.intFunction = intFunction;
+		}
+		@Override
+		public int compare(Path o1, Path o2) {
+			return Integer.compare(intFunction.apply(o1), intFunction.apply(o2));
 		}
 	}
 }
