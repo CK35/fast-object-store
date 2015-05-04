@@ -40,9 +40,6 @@ import de.ck35.metricstore.util.MetricsIOException;
 
 public class FilesystemBucket implements MetricBucket, Closeable {
 	
-	private static final String DAY_FILE_SUFFIX = ".day";
-	private static final String TMP_SUFFIX = "-tmp";
-
 	private static final Logger LOG = LoggerFactory.getLogger(FilesystemBucket.class);
 
 	private final BucketData bucketData;
@@ -93,13 +90,14 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 			DateTime start = interval.getStart().withZone(DateTimeZone.UTC);
 			DateTime end = interval.getEnd().withZone(DateTimeZone.UTC);
 			for(DateTime current = start ; current.isBefore(end) ; current = current.plusMinutes(1)) {
-				Path dayFile = resolveDayFile(current);
+				PathFinder pathFinder = pathFinder(current);
+				Path dayFile = pathFinder.getDayFilePath();
 				if(Files.isRegularFile(dayFile)) {
 					try(StoredObjectNodeReader reader = createReader(dayFile)) {
 						current = read(current, end, reader, callable);
 					}
 				} else {
-					Path minuteFile = resolveMinuteFile(current);
+					Path minuteFile = pathFinder.getMinuteFilePath();
 					if(Files.isRegularFile(minuteFile)) {
 						ObjectNodeWriter writer = writers.remove(minuteFile);
 						if(writer != null) {
@@ -138,12 +136,13 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 	
 	public StoredMetric write(ObjectNode objectNode) {
 		DateTime timestamp = Objects.requireNonNull(timestampFunction.apply(objectNode)).withZone(DateTimeZone.UTC);
-		Path minuteFile = resolveMinuteFile(timestamp);
+		PathFinder pathFinder = pathFinder(timestamp);
+		Path minuteFile = pathFinder.getMinuteFilePath();
 		ObjectNodeWriter writer = writers.get(minuteFile);
 		if(writer == null) {
-			Path dayFile = resolveDayFile(timestamp);
+			Path dayFile = pathFinder.getDayFilePath();
 			if(Files.isRegularFile(dayFile)) {
-				expand(dayFile, minuteFile);
+				expand(pathFinder);
 			}
 			try {
 				Files.createDirectories(minuteFile.getParent());
@@ -157,8 +156,9 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 		return StoredObjectNodeReader.storedObjectNode(this, timestamp, objectNode);
 	}
 	
-	public void expand(Path dayFile, Path minuteFile) {
-		Path tmpDir = resolveTMPDayFolder(minuteFile);
+	public void expand(PathFinder parentPathFinder) {
+		Path dayFile = parentPathFinder.getDayFilePath();
+		Path tmpDir = parentPathFinder.getTemporaryMinuteFilePath().getParent();
 		if(Files.isDirectory(tmpDir)) {			
 			clearDirectory(tmpDir);
 		} else {
@@ -173,7 +173,8 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 				ObjectNodeWriter writer = null;
 				try {
 					for(StoredMetric storedNode = reader.read(); storedNode != null ; storedNode = reader.read()) {
-						Path path = resolveMinuteFileInsideDayDir(tmpDir, storedNode.getTimestamp());
+						PathFinder pathFinder = pathFinder(storedNode.getTimestamp());
+						Path path = pathFinder.getTemporaryMinuteFilePath();
 						if(writer == null || !path.equals(writer.getPath())) {
 							if(writer != null) {
 								writer.close();
@@ -192,7 +193,7 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 			throw new MetricsIOException("Expanding day file: '" + dayFile + "' failed. Could not close a resource!", e);
 		}
 		try {			
-			Files.move(tmpDir, minuteFile.getParent());
+			Files.move(tmpDir, parentPathFinder.getMinuteFilePath().getParent());
 		} catch(IOException e) {
 			throw new MetricsIOException("Expanding day file: '" + dayFile + "' failed. Renaming tmp day folder failed!", e);
 		}
@@ -212,16 +213,17 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 					                                     pathToIntFunction.apply(monthDir), 
 					                                     pathToIntFunction.apply(dayDir));
 					if(currentDay.isBefore(until)) {
-						compress(dayDir);
+						compress(pathFinder(currentDay));
 					}
 				}
 			}
 		}
 	}
 	
-	public void compress(Path dayDir) {
-		Path tmpDayFile = resolveTMPDayFile(dayDir);
-		Path dayFile = resolveDayFile(dayDir);
+	public void compress(PathFinder pathFinder) {
+		Path dayDir = pathFinder.getMinuteFilePath().getParent();
+		Path tmpDayFile = pathFinder.getTemporaryDayFilePath();
+		Path dayFile = pathFinder.getDayFilePath();
 		try(OutputStream out = Files.newOutputStream(tmpDayFile);
 			GZIPOutputStream gzout = new GZIPOutputStream(new BufferedOutputStream(out))) {
 			for(Path minuteFile : listChildsSortedByNumericName(dayDir, false)) {
@@ -252,32 +254,11 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 		}
 	}
 	
-	public Path resolveMinuteFile(DateTime timestamp) {
-		return resolveMinuteFileInsideDayDir(bucketData.getBasePath().resolve(Integer.toString(timestamp.getYear()))
-											   						 .resolve(Integer.toString(timestamp.getMonthOfYear()))
-											   						 .resolve(Integer.toString(timestamp.getDayOfMonth())), timestamp);
+	public PathFinder pathFinder(DateTime timestamp) {
+		return new PathFinder(timestamp, bucketData.getBasePath());
 	}
-	
-	protected Path resolveMinuteFileInsideDayDir(Path dayDir, DateTime timestamp) {
-		return dayDir.resolve(Integer.toString(timestamp.getMinuteOfDay()));
-	}
-	
-	public Path resolveDayFile(DateTime timestamp) {
-		return bucketData.getBasePath().resolve(Integer.toString(timestamp.getYear()))
-				   					   .resolve(Integer.toString(timestamp.getMonthOfYear()))
-				   					   .resolve(Integer.toString(timestamp.getDayOfMonth()) + DAY_FILE_SUFFIX);
-	}
-	
-	protected Path resolveTMPDayFolder(Path minuteFile) {
-		return minuteFile.getParent().getParent().resolve(minuteFile.getParent().getFileName() + TMP_SUFFIX);
-	}
-	
-	protected Path resolveDayFile(Path dayFolder) {
-		return dayFolder.getParent().resolve(dayFolder.getFileName() + DAY_FILE_SUFFIX);
-	}
-	
-	protected Path resolveTMPDayFile(Path dayFolder) {
-		return resolveDayFile(dayFolder).getParent().resolve(dayFolder.getFileName() + TMP_SUFFIX);
+	public PathFinder pathFinder(LocalDate date) {
+		return new PathFinder(date, bucketData.getBasePath());
 	}
 	
 	/**

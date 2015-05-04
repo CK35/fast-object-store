@@ -95,7 +95,7 @@ public class ObjectNodeWriter implements Closeable {
 		}
 		@Override
 		public ObjectNodeWriter apply(Path input) {
-			return input == null ? null : new ObjectNodeWriter(input, jsonFactory);
+			return new ObjectNodeWriter(input, jsonFactory);
 		}
 	}
 }

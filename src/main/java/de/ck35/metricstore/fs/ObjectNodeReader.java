@@ -102,7 +102,7 @@ public class ObjectNodeReader implements Closeable {
 		}
 		@Override
 		public ObjectNodeReader apply(Path input) {
-			return input == null ? null : new ObjectNodeReader(input, mapper);
+			return new ObjectNodeReader(input, mapper);
 		}
 	}
 }

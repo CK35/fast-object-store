@@ -106,7 +106,7 @@ public class FilesystemBucketTest {
 	@Test
 	public void testReadInsideDayFileWithExplicitEnd() throws IOException {
 		try(FilesystemBucket bucket = filesystemBucket()) {
-			Path dayFile = bucket.resolveDayFile(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC));
+			Path dayFile = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getDayFilePath();
 			Files.createDirectories(dayFile.getParent());
 			try(ObjectNodeWriter writer = writerFactory.apply(dayFile)) {
 				writer.write(node(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC).toString(), "fieldA", "valueA1"));
@@ -127,7 +127,7 @@ public class FilesystemBucketTest {
 	@Test
 	public void testReadInsideDayFile() throws IOException {
 		try(FilesystemBucket bucket = filesystemBucket()) {
-			Path dayFile = bucket.resolveDayFile(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC));
+			Path dayFile = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getDayFilePath();
 			Files.createDirectories(dayFile.getParent());
 			try(ObjectNodeWriter writer = writerFactory.apply(dayFile)) {
 				writer.write(node(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC).toString(), "fieldA", "valueA1"));
@@ -144,13 +144,13 @@ public class FilesystemBucketTest {
 	@Test
 	public void testRead() throws IOException {
 		try(FilesystemBucket bucket = filesystemBucket()) {
-			Path dayFile = bucket.resolveDayFile(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC));
+			Path dayFile = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getDayFilePath();
 			Files.createDirectories(dayFile.getParent());
 			try(ObjectNodeWriter writer = writerFactory.apply(dayFile)) {
 				writer.write(node(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC).toString(), "fieldA", "valueA1"));
 				writer.write(node(new DateTime(2015, 1, 1, 23, 59, DateTimeZone.UTC).toString(), "fieldA", "valueA2"));
 			}
-			Path minuteFile = bucket.resolveMinuteFile(new DateTime(2015, 1, 2, 12, 0, DateTimeZone.UTC));
+			Path minuteFile = bucket.pathFinder(new DateTime(2015, 1, 2, 12, 0, DateTimeZone.UTC)).getMinuteFilePath();
 			Files.createDirectories(minuteFile.getParent());
 			try(ObjectNodeWriter writer = writerFactory.apply(minuteFile)) {
 				writer.write(node(new DateTime(2015, 1, 2, 12, 0, DateTimeZone.UTC).toString(), "fieldA", "valueA3"));
@@ -185,12 +185,12 @@ public class FilesystemBucketTest {
 		Path minuteFile2;
 		Path minuteFile3;
 		try(FilesystemBucket bucket = filesystemBucket()) {
-			minuteFile0 = bucket.resolveMinuteFile(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC));
-			minuteFile1 = bucket.resolveMinuteFile(new DateTime(2015, 1, 1, 0, 1, DateTimeZone.UTC));
-			minuteFile2 = bucket.resolveMinuteFile(new DateTime(2015, 1, 1, 0, 2, DateTimeZone.UTC));
-			minuteFile3 = bucket.resolveMinuteFile(new DateTime(2015, 1, 1, 0, 3, DateTimeZone.UTC));
+			minuteFile0 = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getMinuteFilePath();
+			minuteFile1 = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 1, DateTimeZone.UTC)).getMinuteFilePath();
+			minuteFile2 = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 2, DateTimeZone.UTC)).getMinuteFilePath();
+			minuteFile3 = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 3, DateTimeZone.UTC)).getMinuteFilePath();
 			
-			Path dayFile = bucket.resolveDayFile(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC));
+			Path dayFile = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getDayFilePath();
 			Files.createDirectories(dayFile.getParent());
 			try(ObjectNodeWriter writer = writerFactory.apply(dayFile)) {
 				writer.write(node(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC).toString(), "fieldA0", "valueA0"));
@@ -227,15 +227,15 @@ public class FilesystemBucketTest {
 		DateTime timestamp = new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC);
 		Path minuteFile;
 		try(FilesystemBucket bucket = filesystemBucket()) {
-			minuteFile = bucket.resolveMinuteFile(timestamp);
-			Path dayFile = bucket.resolveDayFile(timestamp);
+			minuteFile = bucket.pathFinder(timestamp).getMinuteFilePath();
+			Path dayFile = bucket.pathFinder(timestamp).getDayFilePath();
 			Files.createDirectories(dayFile.getParent());
 			try(ObjectNodeWriter writer = writerFactory.apply(dayFile)) {
 				writer.write(node(timestamp.toString(), "fieldA", "valueA0"));
 			}
-			Path tmpDayFolder = bucket.resolveTMPDayFolder(minuteFile);
+			Path tmpDayFolder = bucket.pathFinder(timestamp).getTemporaryMinuteFilePath().getParent();
 			Files.createDirectories(tmpDayFolder);
-			Path tmpMinuteFile = bucket.resolveMinuteFileInsideDayDir(tmpDayFolder, timestamp);
+			Path tmpMinuteFile = bucket.pathFinder(timestamp).getTemporaryMinuteFilePath();
 			try(ObjectNodeWriter writer = writerFactory.apply(tmpMinuteFile)) {
 				writer.write(node(timestamp.toString(), "fieldA", "valueA0"));
 			}
@@ -257,8 +257,8 @@ public class FilesystemBucketTest {
 		Path minuteFile1;
 		Path minuteFile2;
 		try(FilesystemBucket bucket = filesystemBucket()) {	
-			minuteFile1 = bucket.resolveMinuteFile(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC));
-			minuteFile2 = bucket.resolveMinuteFile(new DateTime(2015, 1, 1, 0, 1, DateTimeZone.UTC));
+			minuteFile1 = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getMinuteFilePath();
+			minuteFile2 = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 1, DateTimeZone.UTC)).getMinuteFilePath();
 			bucket.write(node(new LocalDateTime(2015, 1, 1, 0, 0).toString(), "fieldA1", "valueA1"));
 			bucket.write(node(new LocalDateTime(2015, 1, 1, 0, 1).toString(), "fieldB1", "valueB1"));
 			bucket.write(node(new LocalDateTime(2015, 1, 1, 0, 0).toString(), "fieldA2", "valueA2"));
@@ -282,7 +282,7 @@ public class FilesystemBucketTest {
 	@Test
 	public void testAppendExisting() throws IOException {
 		try(FilesystemBucket bucket = filesystemBucket()) {	
-			Path minuteFile = bucket.resolveMinuteFile(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC));
+			Path minuteFile = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getMinuteFilePath();
 			Files.createDirectories(minuteFile.getParent());
 			try(ObjectNodeWriter writer = writerFactory.apply(minuteFile)) {
 				writer.write(node(new LocalDateTime(2015, 1, 1, 0, 0).toString(), "fieldA", "valueA1"));
