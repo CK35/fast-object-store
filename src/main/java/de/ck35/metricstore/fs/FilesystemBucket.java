@@ -6,17 +6,12 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.DirectoryStream;
-import java.nio.file.DirectoryStream.Filter;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
 import java.util.Objects;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -30,7 +25,6 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
-import com.google.common.collect.Lists;
 
 import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
@@ -94,7 +88,8 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 				Path dayFile = pathFinder.getDayFilePath();
 				if(Files.isRegularFile(dayFile)) {
 					try(StoredObjectNodeReader reader = createReader(dayFile)) {
-						current = read(current, end, reader, callable);
+						read(current, end, reader, callable);
+						current = current.plusDays(1).withTimeAtStartOfDay().minusMinutes(1);
 					}
 				} else {
 					Path minuteFile = pathFinder.getMinuteFilePath();
@@ -205,13 +200,12 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 	}
 	
 	public void compressAll(LocalDate until) {
-		Function<Path, Integer> pathToIntFunction = new PathToIntFunction(); 
-		for(Path yearDir : listChildsSortedByNumericName(bucketData.getBasePath(), true)) {
-			for(Path monthDir : listChildsSortedByNumericName(bucketData.getBasePath(), true)) {
-				for(Path dayDir : listChildsSortedByNumericName(bucketData.getBasePath(), true)) {
-					LocalDate currentDay = new LocalDate(pathToIntFunction.apply(yearDir), 
-					                                     pathToIntFunction.apply(monthDir), 
-					                                     pathToIntFunction.apply(dayDir));
+		for(Path yearDir : new NumericSortedPathIterable(bucketData.getBasePath(), true)) {
+			for(Path monthDir : new NumericSortedPathIterable(yearDir, true)) {
+				for(Path dayDir : new NumericSortedPathIterable(monthDir, true)) {
+					LocalDate currentDay = new LocalDate(NumericSortedPathIterable.intFromFileName(yearDir), 
+					                                     NumericSortedPathIterable.intFromFileName(monthDir), 
+					                                     NumericSortedPathIterable.intFromFileName(dayDir));
 					if(currentDay.isBefore(until)) {
 						compress(pathFinder(currentDay));
 					}
@@ -226,7 +220,7 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 		Path dayFile = pathFinder.getDayFilePath();
 		try(OutputStream out = Files.newOutputStream(tmpDayFile);
 			GZIPOutputStream gzout = new GZIPOutputStream(new BufferedOutputStream(out))) {
-			for(Path minuteFile : listChildsSortedByNumericName(dayDir, false)) {
+			for(Path minuteFile : new NumericSortedPathIterable(dayDir, false)) {
 				ObjectNodeWriter writer = writers.remove(minuteFile);
 				if(writer != null) {
 					writer.close();
@@ -288,59 +282,6 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 			});
 		} catch(IOException e) {
 			throw new MetricsIOException("Could not clean direcotry: '" + root + "'!", e);
-		}
-	}
-	
-	public static List<Path> listChildsSortedByNumericName(Path parent, boolean directories) {
-		Function<Path, Integer> function = new PathToIntFunction();
-		Filter<Path> filter = new IntBasedFileTypePredicate(directories, function);
-		try(DirectoryStream<Path> stream = Files.newDirectoryStream(parent, filter)) {
-			List<Path> content = Lists.newArrayList(stream);
-			Collections.sort(content, new IntBasedComparator(function));
-			return content;
-		} catch(IOException e) {
-			throw new MetricsIOException("Could not list content of: '" + parent + "'!", e);
-		}
-	}
-	
-	public static class PathToIntFunction implements Function<Path, Integer> {
-		@Override
-		public Integer apply(Path input) {
-			return input == null ? null : Integer.parseInt(input.getFileName().toString());
-		}
-	}
-	public static class IntBasedFileTypePredicate implements Filter<Path> {
-		
-		private final boolean directories;
-		private final Function<Path, Integer> intFunction;
-		
-		public IntBasedFileTypePredicate(boolean directories, Function<Path, Integer> intFunction) {
-			this.directories = directories;
-			this.intFunction = intFunction;
-		}
-		@Override
-		public boolean accept(Path entry) throws IOException {
-			if((directories && Files.isDirectory(entry)) || (!directories && Files.isRegularFile(entry))) {
-				try {						
-					intFunction.apply(entry);
-					return true;
-				} catch(NumberFormatException e) {
-					return false;
-				}
-			}
-			return false;
-		}
-	}
-	public static class IntBasedComparator implements Comparator<Path> {
-		
-		private final Function<Path, Integer> intFunction;
-		
-		public IntBasedComparator(Function<Path, Integer> intFunction) {
-			this.intFunction = intFunction;
-		}
-		@Override
-		public int compare(Path o1, Path o2) {
-			return Integer.compare(intFunction.apply(o1), intFunction.apply(o2));
 		}
 	}
 }

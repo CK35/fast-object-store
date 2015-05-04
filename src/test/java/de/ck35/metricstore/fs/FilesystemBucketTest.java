@@ -19,6 +19,7 @@ import java.util.List;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
+import org.joda.time.LocalDate;
 import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
 import org.junit.After;
@@ -298,6 +299,32 @@ public class FilesystemBucketTest {
 		assertEquals(new DateTime(2015,1,1,0,0, DateTimeZone.UTC), result.get(1).getTimestamp());
 		assertEquals("valueA1", result.get(0).getObjectNode().path("fieldA").asText());
 		assertEquals("valueA2", result.get(1).getObjectNode().path("fieldA").asText());
+	}
+	
+	@Test
+	public void testCompress() throws IOException {
+		Path dayFileA;
+		Path minuteFileB;
+		try(FilesystemBucket bucket = filesystemBucket()) {
+			DateTime timestampA = new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC);
+			DateTime timestampB = new DateTime(2015, 1, 2, 0, 0, DateTimeZone.UTC);
+			dayFileA = bucket.pathFinder(timestampA).getDayFilePath();
+			minuteFileB = bucket.pathFinder(timestampB).getMinuteFilePath();
+			bucket.write(node(timestampA.toLocalDate().toString(), "fieldA", "valueA"));
+			bucket.write(node(timestampB.toLocalDate().toString(), "fieldB", "valueB"));
+			bucket.compressAll(new LocalDate(2015, 1, 2));
+		}
+		assertNotEmptyFile(dayFileA);
+		assertNotEmptyFile(minuteFileB);
+		
+		List<StoredMetric> result;
+		try(FilesystemBucket bucket = filesystemBucket()) {
+			result = readMetrics(bucket, new Interval(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC), Period.days(3)), 2);
+		}
+		assertEquals(new DateTime(2015,1,1,0,0, DateTimeZone.UTC), result.get(0).getTimestamp());
+		assertEquals(new DateTime(2015,1,2,0,0, DateTimeZone.UTC), result.get(1).getTimestamp());
+		assertEquals("valueA", result.get(0).getObjectNode().path("fieldA").asText());
+		assertEquals("valueB", result.get(1).getObjectNode().path("fieldB").asText());
 	}
 	
 	@Test
