@@ -56,6 +56,14 @@ public class TimestampFunctionTest {
 		DateTime result = function.apply(node);
 		assertEquals(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC), result);
 	}
+	
+	@Test
+	public void testApplyCutSecondsAndMillis() {
+		String timestamp = new LocalDateTime(2015, 1, 1, 0, 0, 1, 1).toString();
+		DateTime expected = new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC);
+		TimestampFunction function = new TimestampFunction();
+		assertEquals(expected, function.apply(map(ImmutableMap.<String, Object>of(DEFAULT_TIMESTAMP_FILED_NAME, timestamp))));
+	}
 
 	public static ObjectNode map(Map<String, Object> map) {
 		ObjectMapper mapper = new ObjectMapper();

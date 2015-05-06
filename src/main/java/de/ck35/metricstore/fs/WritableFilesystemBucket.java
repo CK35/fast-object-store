@@ -17,8 +17,6 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.joda.time.Interval;
 import org.joda.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,45 +24,27 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
 
-import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
-import de.ck35.metricstore.api.StoredMetricCallable;
 import de.ck35.metricstore.util.LRUCache;
 import de.ck35.metricstore.util.MetricsIOException;
 
-public class FilesystemBucket implements MetricBucket, Closeable {
+public class WritableFilesystemBucket extends ReadableFilesystemBucket implements Closeable {
 	
-	private static final Logger LOG = LoggerFactory.getLogger(FilesystemBucket.class);
+	private static final Logger LOG = LoggerFactory.getLogger(WritableFilesystemBucket.class);
 
-	private final BucketData bucketData;
-	
 	private final LRUCache<Path, ObjectNodeWriter> writers;
 	private final Function<ObjectNode, DateTime> timestampFunction;
 	private final Function<Path, ObjectNodeWriter> writerFactory;
-	private final Function<Path, ObjectNodeReader> readerFactory;
 
-	public FilesystemBucket(BucketData bucketData,
+	public WritableFilesystemBucket(BucketData bucketData,
 	                  	    Function<ObjectNode, DateTime> timestampFunction,
 	                  	    Function<Path, ObjectNodeWriter> writerFactory,
 	                  	    Function<Path, ObjectNodeReader> readerFactory,
 	                  	    LRUCache<Path, ObjectNodeWriter> writers) {
-		this.bucketData = bucketData;
+		super(bucketData, timestampFunction, readerFactory);
 		this.timestampFunction = timestampFunction;
 		this.writerFactory = writerFactory;
-		this.readerFactory = readerFactory;
 		this.writers = writers;
-	}
-	
-	@Override
-	public String getName() {
-		return bucketData.getName();
-	}
-	@Override
-	public String getType() {
-		return bucketData.getType();
-	}
-	public BucketData getBucketData() {
-		return bucketData;
 	}
 	
 	@Override
@@ -79,58 +59,21 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 		writers.clear();
 	}
 	
-	public void read(Interval interval, StoredMetricCallable callable) {
-		try {
-			DateTime start = interval.getStart().withZone(DateTimeZone.UTC);
-			DateTime end = interval.getEnd().withZone(DateTimeZone.UTC);
-			for(DateTime current = start ; current.isBefore(end) ; current = current.plusMinutes(1)) {
-				PathFinder pathFinder = pathFinder(current);
-				Path dayFile = pathFinder.getDayFilePath();
-				if(Files.isRegularFile(dayFile)) {
-					try(StoredObjectNodeReader reader = createReader(dayFile)) {
-						read(current, end, reader, callable);
-						current = current.plusDays(1).withTimeAtStartOfDay().minusMinutes(1);
-					}
-				} else {
-					Path minuteFile = pathFinder.getMinuteFilePath();
-					if(Files.isRegularFile(minuteFile)) {
-						ObjectNodeWriter writer = writers.remove(minuteFile);
-						if(writer != null) {
-							writer.close();
-						}
-						try(StoredObjectNodeReader reader = createReader(minuteFile)) {
-							current = read(current, end, reader, callable);
-						}
-					}
-				}
-			}
-		} catch(IOException e) {
-			throw new MetricsIOException("Could not close a resource while reading from bucket: '" + bucketData + "'!", e);
-		}
-	}
-	
-	protected DateTime read(DateTime start, DateTime end, StoredObjectNodeReader reader, StoredMetricCallable callable) {
-		DateTime current = start;
-		for(StoredMetric next = reader.read() ; next != null ; next = reader.read()) {
-			current = next.getTimestamp();
-			if(current.isBefore(start)) {
-				continue;
-			}
-			if(current.isEqual(end) || current.isAfter(end)) {
-				return current;
-			}
-			current = next.getTimestamp();
-			callable.call(next);
-		}
-		return current;
-	}
-	
+	@Override
 	protected StoredObjectNodeReader createReader(Path path) {
-		return new StoredObjectNodeReader(this, readerFactory.apply(path), timestampFunction);
+		ObjectNodeWriter writer = writers.remove(path);
+		if(writer != null) {
+			try {
+				writer.close();
+			} catch (IOException e) {
+				throw new MetricsIOException("Could not close writer for path: '" + path + "'!", e);
+			}
+		}
+		return super.createReader(path);
 	}
 	
 	public StoredMetric write(ObjectNode objectNode) {
-		DateTime timestamp = Objects.requireNonNull(timestampFunction.apply(objectNode)).withZone(DateTimeZone.UTC);
+		DateTime timestamp = Objects.requireNonNull(timestampFunction.apply(objectNode));
 		PathFinder pathFinder = pathFinder(timestamp);
 		Path minuteFile = pathFinder.getMinuteFilePath();
 		ObjectNodeWriter writer = writers.get(minuteFile);
@@ -200,7 +143,7 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 	}
 	
 	public void compressAll(LocalDate until) {
-		for(Path yearDir : new NumericSortedPathIterable(bucketData.getBasePath(), true)) {
+		for(Path yearDir : new NumericSortedPathIterable(getBucketData().getBasePath(), true)) {
 			for(Path monthDir : new NumericSortedPathIterable(yearDir, true)) {
 				for(Path dayDir : new NumericSortedPathIterable(monthDir, true)) {
 					LocalDate currentDay = new LocalDate(NumericSortedPathIterable.intFromFileName(yearDir), 
@@ -246,13 +189,6 @@ public class FilesystemBucket implements MetricBucket, Closeable {
 		} catch (IOException e) {
 			throw new MetricsIOException("Could not delete old day folder: '" + dayDir + "'!", e);
 		}
-	}
-	
-	public PathFinder pathFinder(DateTime timestamp) {
-		return new PathFinder(timestamp, bucketData.getBasePath());
-	}
-	public PathFinder pathFinder(LocalDate date) {
-		return new PathFinder(date, bucketData.getBasePath());
 	}
 	
 	/**

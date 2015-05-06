@@ -30,13 +30,13 @@ public class BucketCommandProcessor implements Runnable {
 	private static final Logger LOG = LoggerFactory.getLogger(BucketCommandProcessor.class);
 
 	private final Path basePath;
-	private final Function<BucketData, FilesystemBucket> pathBucketFactory;
+	private final Function<BucketData, WritableFilesystemBucket> pathBucketFactory;
 	
 	private final BlockingQueue<BucketCommand<?>> commands;
 
 	public BucketCommandProcessor(Path basePath,
 								  Function<ObjectNode, DateTime> dateTimeFunction,
-	                        	  Function<BucketData, FilesystemBucket> pathBucketFactory, 
+	                        	  Function<BucketData, WritableFilesystemBucket> pathBucketFactory, 
 	                        	  BlockingQueue<BucketCommand<?>> commands) {
 		this.basePath = basePath;
 		this.pathBucketFactory = pathBucketFactory;
@@ -110,7 +110,7 @@ public class BucketCommandProcessor implements Runnable {
 	}
 	
 	public StoredMetric runWriteCommand(WriteCommand command, Context context) {
-		FilesystemBucket bucket = context.getBuckets().get(command.getBucketName());
+		WritableFilesystemBucket bucket = context.getBuckets().get(command.getBucketName());
 		if(bucket == null) {
 			BucketData bucketData;
 			try {
@@ -125,7 +125,7 @@ public class BucketCommandProcessor implements Runnable {
 	}
 	
 	public void runReadCommand(ReadCommand command, Context context) {
-		FilesystemBucket bucket = context.getBuckets().get(command.getBucketName());
+		WritableFilesystemBucket bucket = context.getBuckets().get(command.getBucketName());
 		if(bucket == null) {
 			return;
 		}
@@ -133,15 +133,15 @@ public class BucketCommandProcessor implements Runnable {
 	}
 	
 	public void runCompressCommand(CompressCommand command, Context context) {
-		FilesystemBucket bucket = context.getBuckets().get(command.getBucketName());
+		WritableFilesystemBucket bucket = context.getBuckets().get(command.getBucketName());
 		if(bucket == null) {
 			return;
 		}
 		bucket.compressAll(command.getCompressUntil());
 	}
 	
-	public static void close(Iterable<FilesystemBucket> buckets) {
-		for(FilesystemBucket bucket : buckets) {
+	public static void close(Iterable<WritableFilesystemBucket> buckets) {
+		for(WritableFilesystemBucket bucket : buckets) {
 			try {				
 				bucket.close();
 			} catch(IOException e) {
@@ -152,12 +152,12 @@ public class BucketCommandProcessor implements Runnable {
 	
 	public static class Context {
 		
-		private Map<String, FilesystemBucket> buckets;
+		private Map<String, WritableFilesystemBucket> buckets;
 		
 		public Context() {
 			this.buckets = new HashMap<>();
 		}
-		public Map<String, FilesystemBucket> getBuckets() {
+		public Map<String, WritableFilesystemBucket> getBuckets() {
 			return buckets;
 		}
 	}

@@ -40,7 +40,7 @@ public class TimestampFunction implements Function<ObjectNode, DateTime> {
 		if(dateTimeText.isEmpty()) {
 			throw new IllegalArgumentException("Empty String for timestamp in invalid!");
 		}
-		return formatter.parseDateTime(dateTimeText).withZone(DateTimeZone.UTC);
+		return formatter.parseDateTime(dateTimeText).withZone(DateTimeZone.UTC).withSecondOfMinute(0).withMillisOfSecond(0);
 	}
 	
 }

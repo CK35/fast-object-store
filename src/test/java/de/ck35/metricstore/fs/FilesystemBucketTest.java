@@ -76,13 +76,13 @@ public class FilesystemBucketTest {
 	
 	@After
 	public void after() throws IOException {
-		FilesystemBucket.clearDirectory(bucketData.getBasePath());
+		WritableFilesystemBucket.clearDirectory(bucketData.getBasePath());
 		Files.delete(bucketData.getBasePath());
 	}
 	
 	@Test
 	public void testBucketData() throws IOException {
-		try(FilesystemBucket bucket = filesystemBucket()) {
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			assertEquals(bucketData, bucket.getBucketData());
 			assertEquals(BUCKET_NAME, bucket.getName());
 			assertEquals(BUCKET_TYPE, bucket.getType());
@@ -98,7 +98,7 @@ public class FilesystemBucketTest {
 		Iterator<ObjectNodeWriter> iterator = ImmutableList.of(writer1, writer2).iterator();
 		this.writers = mock(LRUCache.class);
 		when(writers.iterator()).thenReturn(iterator);
-		try(FilesystemBucket bucket = filesystemBucket()) {};
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {};
 		verify(writer1).close();
 		verify(writer2).close();
 		assertEquals(0, writers.size());
@@ -106,7 +106,7 @@ public class FilesystemBucketTest {
 	
 	@Test
 	public void testReadInsideDayFileWithExplicitEnd() throws IOException {
-		try(FilesystemBucket bucket = filesystemBucket()) {
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			Path dayFile = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getDayFilePath();
 			Files.createDirectories(dayFile.getParent());
 			try(ObjectNodeWriter writer = writerFactory.apply(dayFile)) {
@@ -127,7 +127,7 @@ public class FilesystemBucketTest {
 	
 	@Test
 	public void testReadInsideDayFile() throws IOException {
-		try(FilesystemBucket bucket = filesystemBucket()) {
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			Path dayFile = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getDayFilePath();
 			Files.createDirectories(dayFile.getParent());
 			try(ObjectNodeWriter writer = writerFactory.apply(dayFile)) {
@@ -144,7 +144,7 @@ public class FilesystemBucketTest {
 	
 	@Test
 	public void testRead() throws IOException {
-		try(FilesystemBucket bucket = filesystemBucket()) {
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			Path dayFile = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getDayFilePath();
 			Files.createDirectories(dayFile.getParent());
 			try(ObjectNodeWriter writer = writerFactory.apply(dayFile)) {
@@ -170,7 +170,7 @@ public class FilesystemBucketTest {
 	
 	@Test
 	public void testReadWithOpenedWrite() throws IOException {
-		try(FilesystemBucket bucket = filesystemBucket()) {
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			bucket.write(node(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC).toString(), "fieldA", "valueA1"));
 			List<StoredMetric> result = readMetrics(bucket, new Interval(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC), 
 			                                                             new DateTime(2015, 1, 1, 0, 1, DateTimeZone.UTC)), 1);
@@ -185,7 +185,7 @@ public class FilesystemBucketTest {
 		Path minuteFile1;
 		Path minuteFile2;
 		Path minuteFile3;
-		try(FilesystemBucket bucket = filesystemBucket()) {
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			minuteFile0 = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getMinuteFilePath();
 			minuteFile1 = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 1, DateTimeZone.UTC)).getMinuteFilePath();
 			minuteFile2 = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 2, DateTimeZone.UTC)).getMinuteFilePath();
@@ -208,7 +208,7 @@ public class FilesystemBucketTest {
 		assertNotEmptyFile(minuteFile3);
 		
 		List<StoredMetric> result;
-		try(FilesystemBucket bucket = filesystemBucket()) {
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			result = readMetrics(bucket, new Interval(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC), new DateTime(2015, 1, 1, 0, 4, DateTimeZone.UTC)), 5);
 		}
 		assertEquals(new DateTime(2015,1,1,0,0, DateTimeZone.UTC), result.get(0).getTimestamp());
@@ -227,7 +227,7 @@ public class FilesystemBucketTest {
 	public void testExpandWithExistingTMPFolder() throws IOException {
 		DateTime timestamp = new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC);
 		Path minuteFile;
-		try(FilesystemBucket bucket = filesystemBucket()) {
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			minuteFile = bucket.pathFinder(timestamp).getMinuteFilePath();
 			Path dayFile = bucket.pathFinder(timestamp).getDayFilePath();
 			Files.createDirectories(dayFile.getParent());
@@ -244,7 +244,7 @@ public class FilesystemBucketTest {
 		}
 		assertNotEmptyFile(minuteFile);
 		List<StoredMetric> result;
-		try(FilesystemBucket bucket = filesystemBucket()) {
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			result = readMetrics(bucket, new Interval(timestamp, Period.minutes(1)), 2);
 		}
 		assertEquals(timestamp, result.get(0).getTimestamp());
@@ -257,7 +257,7 @@ public class FilesystemBucketTest {
 	public void testAppend() throws IOException {
 		Path minuteFile1;
 		Path minuteFile2;
-		try(FilesystemBucket bucket = filesystemBucket()) {	
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {	
 			minuteFile1 = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getMinuteFilePath();
 			minuteFile2 = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 1, DateTimeZone.UTC)).getMinuteFilePath();
 			bucket.write(node(new LocalDateTime(2015, 1, 1, 0, 0).toString(), "fieldA1", "valueA1"));
@@ -269,7 +269,7 @@ public class FilesystemBucketTest {
 		assertNotEmptyFile(minuteFile2);
 		
 		List<StoredMetric> result;
-		try(FilesystemBucket bucket = filesystemBucket()) {
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			result = readMetrics(bucket, new Interval(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC), new DateTime(2015, 1, 1, 0, 2, DateTimeZone.UTC)), 3);
 		}
 		assertEquals(new DateTime(2015,1,1,0,0, DateTimeZone.UTC), result.get(0).getTimestamp());
@@ -282,7 +282,7 @@ public class FilesystemBucketTest {
 	
 	@Test
 	public void testAppendExisting() throws IOException {
-		try(FilesystemBucket bucket = filesystemBucket()) {	
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {	
 			Path minuteFile = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getMinuteFilePath();
 			Files.createDirectories(minuteFile.getParent());
 			try(ObjectNodeWriter writer = writerFactory.apply(minuteFile)) {
@@ -292,7 +292,7 @@ public class FilesystemBucketTest {
 		}
 		
 		List<StoredMetric> result;
-		try(FilesystemBucket bucket = filesystemBucket()) {
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			result = readMetrics(bucket, new Interval(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC), Period.minutes(1)), 2);
 		}
 		assertEquals(new DateTime(2015,1,1,0,0, DateTimeZone.UTC), result.get(0).getTimestamp());
@@ -305,7 +305,7 @@ public class FilesystemBucketTest {
 	public void testCompress() throws IOException {
 		Path dayFileA;
 		Path minuteFileB;
-		try(FilesystemBucket bucket = filesystemBucket()) {
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			DateTime timestampA = new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC);
 			DateTime timestampB = new DateTime(2015, 1, 2, 0, 0, DateTimeZone.UTC);
 			dayFileA = bucket.pathFinder(timestampA).getDayFilePath();
@@ -318,7 +318,7 @@ public class FilesystemBucketTest {
 		assertNotEmptyFile(minuteFileB);
 		
 		List<StoredMetric> result;
-		try(FilesystemBucket bucket = filesystemBucket()) {
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			result = readMetrics(bucket, new Interval(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC), Period.days(3)), 2);
 		}
 		assertEquals(new DateTime(2015,1,1,0,0, DateTimeZone.UTC), result.get(0).getTimestamp());
@@ -334,7 +334,7 @@ public class FilesystemBucketTest {
 		Path file1 = Files.createFile(directory.resolve("file1"));
 		Path subDir = Files.createDirectory(directory.resolve("dir2"));
 		Path file2 = Files.createFile(subDir.resolve("file2"));
-		FilesystemBucket.clearDirectory(directory);
+		WritableFilesystemBucket.clearDirectory(directory);
 		assertTrue(Files.isDirectory(directory));
 		assertFalse(Files.isRegularFile(file1));
 		assertFalse(Files.isDirectory(subDir));
@@ -342,8 +342,8 @@ public class FilesystemBucketTest {
 		Files.delete(directory);
 	}
 	
-	public FilesystemBucket filesystemBucket() {
-		return new FilesystemBucket(bucketData, timestampFunction, writerFactory, readerFactory, writers);
+	public WritableFilesystemBucket filesystemBucket() {
+		return new WritableFilesystemBucket(bucketData, timestampFunction, writerFactory, readerFactory, writers);
 	}
 	
 	public ObjectNode node(String timestamp, String dataFieldName, String data) {
@@ -353,7 +353,7 @@ public class FilesystemBucketTest {
 		return result;
 	}
 	
-	public static List<StoredMetric> readMetrics(FilesystemBucket bucket, Interval interval, int expectedMetrics) {
+	public static List<StoredMetric> readMetrics(WritableFilesystemBucket bucket, Interval interval, int expectedMetrics) {
 		StoredMetricCallable callable = mock(StoredMetricCallable.class);
 		bucket.read(interval, callable);
 		ArgumentCaptor<StoredMetric> metricsCaptor = ArgumentCaptor.forClass(StoredMetric.class);
