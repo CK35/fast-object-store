@@ -111,6 +111,7 @@
                 <version>1.0-alpha-2</version>
                 <executions>
                     <execution>
+                        <id>load-properties</id>
                         <phase>initialize</phase>
                         <goals>
                             <goal>read-project-properties</goal>
@@ -123,6 +124,7 @@
                         </configuration>
                     </execution>
                     <execution>
+                        <id>load-properties-site</id>
                         <phase>pre-site</phase>
                         <goals>
                             <goal>read-project-properties</goal>
