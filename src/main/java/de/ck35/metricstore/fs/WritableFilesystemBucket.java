@@ -142,33 +142,32 @@ public class WritableFilesystemBucket extends ReadableFilesystemBucket implement
 		}
 	}
 	
-	public void compressAll(LocalDate until) {
-		for(Path yearDir : new NumericSortedPathIterable(getBucketData().getBasePath(), true)) {
-			for(Path monthDir : new NumericSortedPathIterable(yearDir, true)) {
-				for(Path dayDir : new NumericSortedPathIterable(monthDir, true)) {
-					LocalDate currentDay = new LocalDate(NumericSortedPathIterable.intFromFileName(yearDir), 
-					                                     NumericSortedPathIterable.intFromFileName(monthDir), 
-					                                     NumericSortedPathIterable.intFromFileName(dayDir));
-					if(currentDay.isBefore(until)) {
-						compress(pathFinder(currentDay));
-					}
-				}
+	public void compressAll(final LocalDate until) {
+		for(PathFinder pathFinder : pathFinder(until)) {
+			if(pathFinder.getDate().isBefore(until)) {
+				compress(pathFinder);
+			} else {
+				break;
 			}
 		}
 	}
 	
 	public void compress(PathFinder pathFinder) {
-		Path dayDir = pathFinder.getMinuteFilePath().getParent();
-		Path tmpDayFile = pathFinder.getTemporaryDayFilePath();
 		Path dayFile = pathFinder.getDayFilePath();
+		if(Files.isRegularFile(dayFile)) {
+			return;
+		}
+		Path dayDir = pathFinder.getDayDirectoryPath();
+		Path tmpDayFile = pathFinder.getTemporaryDayFilePath();
 		try(OutputStream out = Files.newOutputStream(tmpDayFile);
 			GZIPOutputStream gzout = new GZIPOutputStream(new BufferedOutputStream(out))) {
-			for(Path minuteFile : new NumericSortedPathIterable(dayDir, false)) {
-				ObjectNodeWriter writer = writers.remove(minuteFile);
+			for(PathFinder minuteOfDay : pathFinder.iterateMinutesOfDay()) {
+				Path minuteFilePath = minuteOfDay.getMinuteFilePath();
+				ObjectNodeWriter writer = writers.remove(minuteFilePath);
 				if(writer != null) {
 					writer.close();
 				}
-				try(InputStream in = Files.newInputStream(minuteFile);
+				try(InputStream in = Files.newInputStream(minuteFilePath);
 					GZIPInputStream gzin = new GZIPInputStream(new BufferedInputStream(in))) {
 					for(int next = gzin.read() ; next != -1 ; next = gzin.read()) {
 						gzout.write(next);

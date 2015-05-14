@@ -1,8 +1,6 @@
 package de.ck35.metricstore.fs;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -14,6 +12,10 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
+
+import de.ck35.metricstore.fs.NumericSortedPathIterable.DefaultNumberFunction;
+import de.ck35.metricstore.util.MetricsIOException;
 
 public class NumericSortedPathIterableTest {
 
@@ -28,17 +30,28 @@ public class NumericSortedPathIterableTest {
 	}
 	
 	@Test
-	public void testNumericSortedPathChildsWithDirectories() throws URISyntaxException {
-		assertEquals(ImmutableList.of(basePath.resolve("3"),
-		                              basePath.resolve("5"),
-		                              basePath.resolve("40")), ImmutableList.copyOf(new NumericSortedPathIterable(basePath, true)));
+	public void testIterable() throws URISyntaxException {
+		assertEquals(ImmutableList.of(Maps.immutableEntry(1, basePath.resolve("1")),
+									  Maps.immutableEntry(3, basePath.resolve("3")),
+									  Maps.immutableEntry(5, basePath.resolve("5")),
+									  Maps.immutableEntry(10, basePath.resolve("10"))), 
+									  ImmutableList.copyOf(new NumericSortedPathIterable(basePath)));
+	}
+	
+	@Test(expected=MetricsIOException.class)
+	public void testIterableOnFile() {
+		ImmutableList.copyOf(new NumericSortedPathIterable(basePath.resolve("1")));
 	}
 	
 	@Test
-	public void testNumericSortedPathChildsWithFiles() throws URISyntaxException {
-		assertEquals(ImmutableList.of(basePath.resolve("1"),
-		                              basePath.resolve("2"),
-		                              basePath.resolve("10")), ImmutableList.copyOf(new NumericSortedPathIterable(basePath, false)));
+	public void testApplyNullPath() {
+		NumericSortedPathIterable iterable = new NumericSortedPathIterable(basePath);
+		assertNull(iterable.apply(null));
 	}
-
+	
+	@Test
+	public void testDefaultNumberFunctionApplyNull() {
+		DefaultNumberFunction function = new DefaultNumberFunction();
+		assertNull(function.apply(null));
+	}
 }
