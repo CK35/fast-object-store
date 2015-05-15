@@ -129,4 +129,26 @@ public class BucketCommand<T> {
 			return "CompressCommand [compressUntil=" + compressUntil + "]";
 		}
 	}
+	
+	public static class DeleteCommand extends BucketCommand<Void> {
+		
+		private final String bucketName;
+		private final LocalDate deleteUntil;
+
+		public DeleteCommand(String bucketName, LocalDate deleteUntil) {
+			this.bucketName = bucketName;
+			this.deleteUntil = deleteUntil;
+		}
+		public String getBucketName() {
+			return bucketName;
+		}
+		public LocalDate getDeleteUntil() {
+			return deleteUntil;
+		}
+		@Override
+		public String toString() {
+			return "DeleteCommand [bucketName=" + bucketName + ", deleteUntil="
+					+ deleteUntil + "]";
+		}
+	}
 }

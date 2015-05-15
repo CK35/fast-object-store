@@ -328,6 +328,39 @@ public class FilesystemBucketTest {
 	}
 	
 	@Test
+	public void testDelete() throws IOException {
+		DateTime timestampA = new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC);
+		DateTime timestampB = new DateTime(2015, 1, 2, 0, 0, DateTimeZone.UTC);
+		DateTime timestampC = new DateTime(2015, 1, 3, 0, 0, DateTimeZone.UTC);
+		
+		Path dayFileA;
+		Path dayFolderB;
+		Path dayFolderC;
+		
+		try(WritableFilesystemBucket bucket = filesystemBucket()) {
+			dayFileA = bucket.pathFinder(timestampA).getDayFilePath();
+			dayFolderB = bucket.pathFinder(timestampB).getDayDirectoryPath();
+			dayFolderC = bucket.pathFinder(timestampC).getDayDirectoryPath();
+			Files.createDirectories(dayFileA.getParent());
+			try(ObjectNodeWriter writer = writerFactory.apply(dayFileA)) {
+				writer.write(node(timestampA.toString(), "fieldA", "valueA0"));
+			}
+			bucket.write(node(timestampB.toLocalDate().toString(), "fieldA", "valueA"));
+			bucket.write(node(timestampC.toLocalDate().toString(), "fieldB", "valueB"));
+			
+			assertTrue(Files.isRegularFile(dayFileA));
+			assertTrue(Files.isDirectory(dayFolderB));
+			assertTrue(Files.isDirectory(dayFolderC));
+			
+			bucket.deletAll(timestampC.toLocalDate());
+			
+			assertFalse(Files.isRegularFile(dayFileA));
+			assertFalse(Files.isDirectory(dayFolderB));
+			assertTrue(Files.isDirectory(dayFolderC));
+		}
+	}
+	
+	@Test
 	public void testClearDirectory() throws IOException {
 		Path directory = Files.createTempDirectory("clearTest");
 		LOG.debug("Using dir: '{}' for clear test.", directory);

@@ -20,6 +20,7 @@ import com.google.common.base.Function;
 import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
 import de.ck35.metricstore.fs.BucketCommand.CompressCommand;
+import de.ck35.metricstore.fs.BucketCommand.DeleteCommand;
 import de.ck35.metricstore.fs.BucketCommand.ListBucketsCommand;
 import de.ck35.metricstore.fs.BucketCommand.ReadCommand;
 import de.ck35.metricstore.fs.BucketCommand.WriteCommand;
@@ -100,6 +101,10 @@ public class BucketCommandProcessor implements Runnable {
 			runCompressCommand((CompressCommand) command, context);
 			command.commandCompleted();
 			
+		} else if(command instanceof DeleteCommand) {
+			runDeleteCommand((DeleteCommand) command, context);
+			command.commandCompleted();
+			
 		} else {
 			throw new IllegalArgumentException("Unknown command!");
 		}
@@ -138,6 +143,14 @@ public class BucketCommandProcessor implements Runnable {
 			return;
 		}
 		bucket.compressAll(command.getCompressUntil());
+	}
+	
+	public void runDeleteCommand(DeleteCommand command, Context context) {
+		WritableFilesystemBucket bucket = context.getBuckets().get(command.getBucketName());
+		if(bucket == null) {
+			return;
+		}
+		bucket.deletAll(command.getDeleteUntil());
 	}
 	
 	public static void close(Iterable<WritableFilesystemBucket> buckets) {

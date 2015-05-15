@@ -37,10 +37,10 @@ public class WritableFilesystemBucket extends ReadableFilesystemBucket implement
 	private final Function<Path, ObjectNodeWriter> writerFactory;
 
 	public WritableFilesystemBucket(BucketData bucketData,
-	                  	    Function<ObjectNode, DateTime> timestampFunction,
-	                  	    Function<Path, ObjectNodeWriter> writerFactory,
-	                  	    Function<Path, ObjectNodeReader> readerFactory,
-	                  	    LRUCache<Path, ObjectNodeWriter> writers) {
+	                  	    		Function<ObjectNode, DateTime> timestampFunction,
+	                  	    		Function<Path, ObjectNodeWriter> writerFactory,
+	                  	    		Function<Path, ObjectNodeReader> readerFactory,
+	                  	    		LRUCache<Path, ObjectNodeWriter> writers) {
 		super(bucketData, timestampFunction, readerFactory);
 		this.timestampFunction = timestampFunction;
 		this.writerFactory = writerFactory;
@@ -142,6 +142,43 @@ public class WritableFilesystemBucket extends ReadableFilesystemBucket implement
 		}
 	}
 	
+	public void deletAll(final LocalDate until) {
+		for(PathFinder pathFinder : pathFinder(until)) {
+			if(pathFinder.getDate().isBefore(until)) {
+				delete(pathFinder);
+			} else {
+				break;
+			}
+		}
+	}
+	
+	public void delete(PathFinder pathFinder) {
+		Path dayFilePath = pathFinder.getDayFilePath();
+		if(Files.isRegularFile(dayFilePath)) {
+			try {
+				Files.delete(dayFilePath);
+			} catch (IOException e) {
+				throw new MetricsIOException("Could not delete day file: '" + dayFilePath + "'!", e);
+			}
+		} else {
+			Path dayDirectoryPath = pathFinder.getDayDirectoryPath();
+			for(PathFinder minuteOfDay : pathFinder.iterateMinutesOfDay()) {
+				Path minuteFilePath = minuteOfDay.getMinuteFilePath();
+				try {
+					closeWriter(minuteFilePath);
+				} catch (IOException e) {
+					throw new MetricsIOException("Could not delete day folder because writer: '" + minuteFilePath + "' could not be closed!", e);
+				}
+			}
+			clearDirectory(dayDirectoryPath);
+			try {
+				Files.delete(dayDirectoryPath);
+			} catch (IOException e) {
+				throw new MetricsIOException("Could not delete day folder: '" + dayDirectoryPath + "'!", e);
+			}
+		}
+	}
+	
 	public void compressAll(final LocalDate until) {
 		for(PathFinder pathFinder : pathFinder(until)) {
 			if(pathFinder.getDate().isBefore(until)) {
@@ -163,11 +200,7 @@ public class WritableFilesystemBucket extends ReadableFilesystemBucket implement
 			GZIPOutputStream gzout = new GZIPOutputStream(new BufferedOutputStream(out))) {
 			for(PathFinder minuteOfDay : pathFinder.iterateMinutesOfDay()) {
 				Path minuteFilePath = minuteOfDay.getMinuteFilePath();
-				ObjectNodeWriter writer = writers.remove(minuteFilePath);
-				if(writer != null) {
-					writer.close();
-				}
-				try(InputStream in = Files.newInputStream(minuteFilePath);
+				try(InputStream in = Files.newInputStream(closeWriter(minuteFilePath));
 					GZIPInputStream gzin = new GZIPInputStream(new BufferedInputStream(in))) {
 					for(int next = gzin.read() ; next != -1 ; next = gzin.read()) {
 						gzout.write(next);
@@ -188,6 +221,21 @@ public class WritableFilesystemBucket extends ReadableFilesystemBucket implement
 		} catch (IOException e) {
 			throw new MetricsIOException("Could not delete old day folder: '" + dayDir + "'!", e);
 		}
+	}
+
+	/**
+	 * Close a writer which is currently writing into the given path. If there is no such writer nothing happens.
+	 * 
+	 * @param path The path for which a writer should be closed.
+	 * @return The path which has been supplied for method chaining.
+	 * @throws IOException If closing the writer fails.
+	 */
+	private Path closeWriter(Path path) throws IOException {
+		ObjectNodeWriter writer = writers.remove(path);
+		if(writer != null) {
+			writer.close();
+		}
+		return path;
 	}
 	
 	/**

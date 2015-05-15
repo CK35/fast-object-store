@@ -48,7 +48,7 @@ public class BucketData {
 		}
 		String name = basePath.getFileName().toString();
 		String type;
-		try(DirectoryStream<Path> directoryStream = Files.newDirectoryStream(basePath, TYPE_SUFFIX)) {
+		try(DirectoryStream<Path> directoryStream = Files.newDirectoryStream(basePath, "*" + TYPE_SUFFIX)) {
 			Iterator<Path> iterator = directoryStream.iterator();
 			if(iterator.hasNext()) {
 				String fileName = iterator.next().getFileName().toString();
@@ -63,7 +63,7 @@ public class BucketData {
 	public static BucketData create(Path parent, String name, String type) throws IOException {
 		Path basePath = Files.createDirectories(parent.resolve(Objects.requireNonNull(name)));
 		if(type != null) {
-			Path typeFilePath = basePath.resolve(type + "TYPE_SUFFIX");
+			Path typeFilePath = basePath.resolve(type + TYPE_SUFFIX);
 			try {				
 				Files.createFile(typeFilePath);
 			} catch(FileAlreadyExistsException e) {
