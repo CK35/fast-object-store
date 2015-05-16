@@ -4,6 +4,7 @@ import static de.ck35.metricstore.util.TimestampFunction.DEFAULT_TIMESTAMP_FILED
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -36,10 +37,10 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 
 import de.ck35.metricstore.api.StoredMetric;
-import de.ck35.metricstore.api.StoredMetricCallable;
 import de.ck35.metricstore.fs.configuration.ObjectMapperConfiguration;
 import de.ck35.metricstore.util.LRUCache;
 import de.ck35.metricstore.util.TimestampFunction;
@@ -105,7 +106,7 @@ public class FilesystemBucketTest {
 	}
 	
 	@Test
-	public void testReadInsideDayFileWithExplicitEnd() throws IOException {
+	public void testReadInsideDayFileWithExplicitEnd() throws IOException, InterruptedException {
 		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			Path dayFile = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getDayFilePath();
 			Files.createDirectories(dayFile.getParent());
@@ -126,7 +127,7 @@ public class FilesystemBucketTest {
 	}
 	
 	@Test
-	public void testReadInsideDayFile() throws IOException {
+	public void testReadInsideDayFile() throws IOException, InterruptedException {
 		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			Path dayFile = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getDayFilePath();
 			Files.createDirectories(dayFile.getParent());
@@ -143,7 +144,7 @@ public class FilesystemBucketTest {
 	}
 	
 	@Test
-	public void testRead() throws IOException {
+	public void testRead() throws IOException, InterruptedException {
 		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			Path dayFile = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getDayFilePath();
 			Files.createDirectories(dayFile.getParent());
@@ -169,7 +170,7 @@ public class FilesystemBucketTest {
 	}
 	
 	@Test
-	public void testReadWithOpenedWrite() throws IOException {
+	public void testReadWithOpenedWrite() throws IOException, InterruptedException {
 		try(WritableFilesystemBucket bucket = filesystemBucket()) {
 			bucket.write(node(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC).toString(), "fieldA", "valueA1"));
 			List<StoredMetric> result = readMetrics(bucket, new Interval(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC), 
@@ -180,7 +181,7 @@ public class FilesystemBucketTest {
 	}
 	
 	@Test
-	public void testExpand() throws IOException {
+	public void testExpand() throws IOException, InterruptedException {
 		Path minuteFile0;
 		Path minuteFile1;
 		Path minuteFile2;
@@ -224,7 +225,7 @@ public class FilesystemBucketTest {
 	}
 	
 	@Test
-	public void testExpandWithExistingTMPFolder() throws IOException {
+	public void testExpandWithExistingTMPFolder() throws IOException, InterruptedException {
 		DateTime timestamp = new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC);
 		Path minuteFile;
 		try(WritableFilesystemBucket bucket = filesystemBucket()) {
@@ -254,7 +255,7 @@ public class FilesystemBucketTest {
 	}
 	
 	@Test
-	public void testAppend() throws IOException {
+	public void testAppend() throws IOException, InterruptedException {
 		Path minuteFile1;
 		Path minuteFile2;
 		try(WritableFilesystemBucket bucket = filesystemBucket()) {	
@@ -281,7 +282,7 @@ public class FilesystemBucketTest {
 	}
 	
 	@Test
-	public void testAppendExisting() throws IOException {
+	public void testAppendExisting() throws IOException, InterruptedException {
 		try(WritableFilesystemBucket bucket = filesystemBucket()) {	
 			Path minuteFile = bucket.pathFinder(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC)).getMinuteFilePath();
 			Files.createDirectories(minuteFile.getParent());
@@ -302,7 +303,7 @@ public class FilesystemBucketTest {
 	}
 	
 	@Test
-	public void testCompress() throws IOException {
+	public void testCompress() throws IOException, InterruptedException {
 		Path dayFileA;
 		Path minuteFileB;
 		try(WritableFilesystemBucket bucket = filesystemBucket()) {
@@ -386,11 +387,13 @@ public class FilesystemBucketTest {
 		return result;
 	}
 	
-	public static List<StoredMetric> readMetrics(WritableFilesystemBucket bucket, Interval interval, int expectedMetrics) {
-		StoredMetricCallable callable = mock(StoredMetricCallable.class);
-		bucket.read(interval, callable);
+	@SuppressWarnings("unchecked")
+	public static List<StoredMetric> readMetrics(WritableFilesystemBucket bucket, Interval interval, int expectedMetrics) throws InterruptedException {
+		Predicate<StoredMetric> predicate = mock(Predicate.class);
+		when(predicate.apply(any(StoredMetric.class))).thenReturn(true);
+		bucket.read(interval, predicate);
 		ArgumentCaptor<StoredMetric> metricsCaptor = ArgumentCaptor.forClass(StoredMetric.class);
-		verify(callable, times(expectedMetrics)).call(metricsCaptor.capture());
+		verify(predicate, times(expectedMetrics)).apply(metricsCaptor.capture());
 		return metricsCaptor.getAllValues();
 	}
 

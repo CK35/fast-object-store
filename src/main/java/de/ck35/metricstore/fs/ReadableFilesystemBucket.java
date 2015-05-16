@@ -11,10 +11,10 @@ import org.joda.time.LocalDate;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
+import com.google.common.base.Predicate;
 
 import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
-import de.ck35.metricstore.api.StoredMetricCallable;
 import de.ck35.metricstore.util.MetricsIOException;
 
 public class ReadableFilesystemBucket implements MetricBucket {
@@ -43,7 +43,7 @@ public class ReadableFilesystemBucket implements MetricBucket {
 		return bucketData;
 	}
 	
-	public void read(Interval interval, StoredMetricCallable callable) {
+	public void read(Interval interval, Predicate<StoredMetric> predicate) throws InterruptedException {
 		try {
 			DateTime start = interval.getStart().withZone(DateTimeZone.UTC).withSecondOfMinute(0).withMillisOfSecond(0);
 			DateTime end = interval.getEnd().withZone(DateTimeZone.UTC).withSecondOfMinute(0).withMillisOfSecond(0);
@@ -52,14 +52,14 @@ public class ReadableFilesystemBucket implements MetricBucket {
 				Path dayFile = pathFinder.getDayFilePath();
 				if(Files.isRegularFile(dayFile)) {
 					try(StoredObjectNodeReader reader = createReader(dayFile)) {
-						read(current, end, reader, callable);
+						read(current, end, reader, predicate);
 						current = current.withHourOfDay(23).withMinuteOfHour(59);
 					}
 				} else {
 					Path minuteFile = pathFinder.getMinuteFilePath();
 					if(Files.isRegularFile(minuteFile)) {
 						try(StoredObjectNodeReader reader = createReader(minuteFile)) {
-							current = read(current, end, reader, callable);
+							current = read(current, end, reader, predicate);
 						}
 					}
 				}
@@ -69,7 +69,7 @@ public class ReadableFilesystemBucket implements MetricBucket {
 		}
 	}
 	
-	protected DateTime read(DateTime start, DateTime end, StoredObjectNodeReader reader, StoredMetricCallable callable) {
+	protected DateTime read(DateTime start, DateTime end, StoredObjectNodeReader reader, Predicate<StoredMetric> predicate) throws InterruptedException {
 		DateTime current = start;
 		for(StoredMetric next = reader.read() ; next != null ; next = reader.read()) {
 			current = next.getTimestamp();
@@ -80,7 +80,9 @@ public class ReadableFilesystemBucket implements MetricBucket {
 				return current;
 			}
 			current = next.getTimestamp();
-			callable.call(next);
+			if(!predicate.apply(next)) {
+				throw new InterruptedException();
+			}
 		}
 		return current;
 	}

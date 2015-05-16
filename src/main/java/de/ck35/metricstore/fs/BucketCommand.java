@@ -7,10 +7,10 @@ import org.joda.time.Interval;
 import org.joda.time.LocalDate;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Predicate;
 
 import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
-import de.ck35.metricstore.api.StoredMetricCallable;
 
 public class BucketCommand<T> {
 
@@ -86,12 +86,12 @@ public class BucketCommand<T> {
 		
 		private final String bucketName;
 		private final Interval interval;
-		private final StoredMetricCallable callable;
+		private final Predicate<StoredMetric> predicate;
 		
-		public ReadCommand(String bucketName, Interval interval, StoredMetricCallable callable) {
+		public ReadCommand(String bucketName, Interval interval, Predicate<StoredMetric> predicate) {
 			this.bucketName = bucketName;
 			this.interval = interval;
-			this.callable = callable;
+			this.predicate = predicate;
 		}
 		
 		public String getBucketName() {
@@ -100,8 +100,8 @@ public class BucketCommand<T> {
 		public Interval getInterval() {
 			return interval;
 		}
-		public StoredMetricCallable getCallable() {
-			return callable;
+		public Predicate<StoredMetric> getPredicate() {
+			return predicate;
 		}
 		@Override
 		public String toString() {

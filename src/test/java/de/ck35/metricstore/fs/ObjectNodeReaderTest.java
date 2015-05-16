@@ -47,6 +47,7 @@ public class ObjectNodeReaderTest {
 			ObjectNode node1 = reader.read();
 			ObjectNode node2 = reader.read();
 			ObjectNode node3 = reader.read();
+			assertEquals(tempFile, reader.getPath());
 			assertNotNull(node1);
 			assertNotNull(node2);
 			assertNotNull(node3);

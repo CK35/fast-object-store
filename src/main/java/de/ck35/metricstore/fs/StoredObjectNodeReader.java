@@ -2,6 +2,7 @@ package de.ck35.metricstore.fs;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Objects;
 
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -33,15 +34,17 @@ public class StoredObjectNodeReader implements Closeable {
 
 	public StoredMetric read() {
 		ObjectNode objectNode = reader.read();
-		if(objectNode == null) {
-			return null;
+		while(objectNode != null) {
+			try {
+				DateTime timestamp = Objects.requireNonNull(timestampFunction.apply(objectNode), "Timestamp must not be null!");
+				return storedObjectNode(bucket, timestamp, objectNode);				
+			} catch(IllegalArgumentException e) {
+				ignoredObjectsCount++;
+				LOG.warn("Missing timestamp inside object node: '{}' in file: '{}'.", objectNode, reader.getPath());				
+			}
+			objectNode = reader.read();
 		}
-		DateTime timestamp = timestampFunction.apply(objectNode);
-		if(timestamp == null) {
-			ignoredObjectsCount++;
-			LOG.warn("Missing timestamp inside object node: '{}' in file: '{}'.", objectNode, reader.getPath());
-		}
-		return storedObjectNode(bucket, timestamp, objectNode);
+		return null;
 	}
 	
 	public int getIgnoredObjectsCount() {

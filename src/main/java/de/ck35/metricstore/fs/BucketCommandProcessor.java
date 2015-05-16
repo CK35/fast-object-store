@@ -134,7 +134,11 @@ public class BucketCommandProcessor implements Runnable {
 		if(bucket == null) {
 			return;
 		}
-		bucket.read(command.getInterval(), command.getCallable());
+		try {
+			bucket.read(command.getInterval(), command.getPredicate());
+		} catch (InterruptedException e) {
+			LOG.warn("Interrupted while reading: '" + command + "'.");
+		}
 	}
 	
 	public void runCompressCommand(CompressCommand command, Context context) {
