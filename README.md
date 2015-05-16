@@ -1,3 +1,5 @@
+![Metric Processing Pipeline](doc/metric-processing-pipeline.png "Metric Processing Pipeline")
+
 # metric-store
 
 [![Build Status](https://travis-ci.org/CK35/metric-store.svg?branch=master)](https://travis-ci.org/CK35/metric-store)
