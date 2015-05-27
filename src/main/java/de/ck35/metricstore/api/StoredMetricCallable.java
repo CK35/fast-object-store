@@ -1,5 +1,6 @@
 package de.ck35.metricstore.api;
 
+
 /**
  * Implement this interface when you load metric data from the {@link MetricRepository}. 
  * <p>

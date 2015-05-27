@@ -1,10 +1,14 @@
 package de.ck35.metricstore.fs;
 
+import java.util.Observable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.joda.time.Interval;
 import org.joda.time.LocalDate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Predicate;
@@ -12,14 +16,18 @@ import com.google.common.base.Predicate;
 import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
 
-public class BucketCommand<T> {
+public class BucketCommand<T> extends Observable {
 
+	private static final Logger LOG = LoggerFactory.getLogger(BucketCommand.class);
+	
 	private final CountDownLatch resultLatch;
+	private final AtomicBoolean completed;
 	private final AtomicReference<T> resultReference;
 	
 	public BucketCommand() {
 		this.resultLatch = new CountDownLatch(1);
 		this.resultReference = new AtomicReference<>();
+		this.completed = new AtomicBoolean();
 	}
 	
 	public T getResult() {
@@ -37,12 +45,22 @@ public class BucketCommand<T> {
 	
 	public void commandCompleted() {
 		resultLatch.countDown();
+		completed.set(true);
+		setChanged();
+		try {			
+			notifyObservers();
+		} catch(Exception e) {
+			LOG.error("Error while notifying observers!", e);
+		}
+	}
+	
+	public boolean isCompleted() {
+	    return completed.get();
 	}
 	
 	@SuppressWarnings("unchecked")
 	public void setResult(Object result) {
 		resultReference.set((T)result);
-		commandCompleted();
 	}
 	
 	public static class ListBucketsCommand extends BucketCommand<Iterable<MetricBucket>> {

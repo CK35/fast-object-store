@@ -68,7 +68,7 @@ public class FilesystemBucketTest {
 		this.timestampFunction = new TimestampFunction();
 		this.writerFactory = new ObjectNodeWriter.Factory(mapper.getFactory());
 		this.readerFactory = new ObjectNodeReader.Factory(mapper);
-		this.writers = new LRUCache<>();
+		this.writers = new LRUCache<>(5);
 		
 		Path workdir = Files.createTempDirectory("FilesystemBucketTest");
 		LOG.debug("Running test inside tmp work dir: '{}'.", workdir);

@@ -13,23 +13,15 @@ import de.ck35.metricstore.util.LRUCache;
 public class LRUCacheTest {
 
 	@Test
-	public void getMaxCachedEntries() {
-		assertEquals(LRUCache.DEFAULT_MAX_CACHED_ENTRIES, new LRUCache<>().getMaxCachedEntries());
-		assertEquals(LRUCache.DEFAULT_MAX_CACHED_ENTRIES, new LRUCache<>(Suppliers.ofInstance(0)).getMaxCachedEntries());
-		assertEquals(LRUCache.DEFAULT_MAX_CACHED_ENTRIES, new LRUCache<>(Suppliers.ofInstance(-1)).getMaxCachedEntries());
-		assertEquals(1, new LRUCache<>(Suppliers.ofInstance(1)).getMaxCachedEntries());
-	}
-
-	@Test
 	public void testReplace() {
-		LRUCache<String, String> cache = new LRUCache<>();
+		LRUCache<String, String> cache = new LRUCache<>(1);
 		cache.put("a", "a1");
 		assertEquals("a1", cache.put("a", "a2"));
 	}
 	
 	@Test(expected=NullPointerException.class)
 	public void testPutNull() {
-		LRUCache<String, String> cache = new LRUCache<>();
+		LRUCache<String, String> cache = new LRUCache<>(1);
 		cache.put("a", null);
 	}
 	
@@ -68,21 +60,21 @@ public class LRUCacheTest {
 
 	@Test
 	public void testRemove() {
-		LRUCache<String, String> cache = new LRUCache<>();
+		LRUCache<String, String> cache = new LRUCache<>(1);
 		cache.put("a", "a1");
 		assertEquals("a1", cache.remove("a"));
 	}
 	
 	@Test
 	public void testRemoveNotExisiting() {
-		LRUCache<String, String> cache = new LRUCache<>();
+		LRUCache<String, String> cache = new LRUCache<>(1);
 		cache.put("a", "a1");
 		assertNull(cache.remove("b"));
 	}
 
 	@Test
 	public void testClear() {
-		LRUCache<String, String> cache = new LRUCache<>();
+		LRUCache<String, String> cache = new LRUCache<>(1);
 		cache.put("a", "a1");
 		assertEquals("a1", cache.get("a"));
 		cache.clear();

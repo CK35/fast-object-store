@@ -10,11 +10,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 
-import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
 
 import de.ck35.metricstore.api.MetricBucket;
@@ -36,7 +34,6 @@ public class BucketCommandProcessor implements Runnable {
 	private final BlockingQueue<BucketCommand<?>> commands;
 
 	public BucketCommandProcessor(Path basePath,
-								  Function<ObjectNode, DateTime> dateTimeFunction,
 	                        	  Function<BucketData, WritableFilesystemBucket> pathBucketFactory, 
 	                        	  BlockingQueue<BucketCommand<?>> commands) {
 		this.basePath = basePath;
@@ -50,13 +47,15 @@ public class BucketCommandProcessor implements Runnable {
 		try {
 			init(context);
 			try {
+			    BucketCommandProcessorThread.initialized();
 				while(!Thread.interrupted()) {
 					BucketCommand<?> command = commands.take();
 					try {						
 						runCommand(command, context);
 					} catch(Exception e) {
 						LOG.error("Error while working on command: '{}'!", command, e);
-						command.setResult(null);
+					} finally {
+						command.commandCompleted();
 					}
 				}
 			} catch(InterruptedException e) {
@@ -92,18 +91,15 @@ public class BucketCommandProcessor implements Runnable {
 			
 		} else if(command instanceof ReadCommand) {
 			runReadCommand((ReadCommand) command, context);
-			command.commandCompleted();
 			
 		} else if(command instanceof ListBucketsCommand) {
 			command.setResult(runListBucketsCommand((ListBucketsCommand) command, context));
 			
 		} else if(command instanceof CompressCommand) {
 			runCompressCommand((CompressCommand) command, context);
-			command.commandCompleted();
 			
 		} else if(command instanceof DeleteCommand) {
 			runDeleteCommand((DeleteCommand) command, context);
-			command.commandCompleted();
 			
 		} else {
 			throw new IllegalArgumentException("Unknown command!");

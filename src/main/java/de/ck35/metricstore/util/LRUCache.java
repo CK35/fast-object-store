@@ -17,28 +17,18 @@ import com.google.common.collect.Collections2;
 
 public class LRUCache<K, V> implements Iterable<V> {
 
-	protected static final int DEFAULT_MAX_CACHED_ENTRIES = 5;
-	
 	private final Supplier<Integer> maxCachedEntriesSupplier;
 	private final Map<K, CacheEntry<V>> cache;
 	private final Comparator<Entry<K, CacheEntry<V>>> comparator;
 	
-	public LRUCache() {
-		this(Suppliers.<Integer>ofInstance(null));
+	public LRUCache(int maxCachedEntries) {
+		this(Suppliers.<Integer>ofInstance(maxCachedEntries));
 	}
 	
-	public LRUCache(Supplier<Integer> maxCachedEntriesSupplier) {
-		this.maxCachedEntriesSupplier = maxCachedEntriesSupplier;
+	public LRUCache(Supplier<Integer> maxCachedEntriesSetting) {
+		this.maxCachedEntriesSupplier = maxCachedEntriesSetting;
 		this.cache = new HashMap<>();
 		this.comparator = new CacheEntryComparator<>();
-	}
-	
-	public int getMaxCachedEntries() {
-		Integer max = maxCachedEntriesSupplier.get();
-		if(max == null || max < 1) {
-			return DEFAULT_MAX_CACHED_ENTRIES;
-		}
-		return max;
 	}
 	
 	public V get(K key) {
@@ -51,7 +41,7 @@ public class LRUCache<K, V> implements Iterable<V> {
 	
 	public V put(K key, V value) {
 		CacheEntry<V> old = cache.put(key, new CacheEntry<>(value));
-		int maxCachedEntries = getMaxCachedEntries();
+		int maxCachedEntries = maxCachedEntriesSupplier.get();
 		if(cache.size() > maxCachedEntries) {
 			List<Entry<K, CacheEntry<V>>> list = new ArrayList<>(cache.entrySet());
 			Collections.sort(list, comparator);

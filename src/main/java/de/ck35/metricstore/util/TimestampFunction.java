@@ -11,7 +11,7 @@ import com.google.common.base.Function;
 
 public class TimestampFunction implements Function<ObjectNode, DateTime> {
 
-	private static final DateTimeFormatter DEFAULT_FORMATTER = ISODateTimeFormat.dateTimeParser()
+    public static final DateTimeFormatter DEFAULT_FORMATTER = ISODateTimeFormat.dateTimeParser()
 																				.withOffsetParsed()
 																				.withZoneUTC();
 	public static final String DEFAULT_TIMESTAMP_FILED_NAME = "timestamp";
