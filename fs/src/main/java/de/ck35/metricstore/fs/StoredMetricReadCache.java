@@ -26,10 +26,15 @@ public class StoredMetricReadCache extends AbstractIterator<StoredMetric> implem
     private boolean closed;
     
     public StoredMetricReadCache(Supplier<Integer> maxCacheSizeSetting) {
+        this(maxCacheSizeSetting, new ReentrantLock(), new LinkedList<StoredMetric>());
+    }
+    protected StoredMetricReadCache(Supplier<Integer> maxCacheSizeSetting, 
+                                    Lock cacheLock,
+                                    Deque<StoredMetric> cache) {
         this.maxCacheSizeSetting = maxCacheSizeSetting;
-        this.cacheLock = new ReentrantLock();
+        this.cacheLock = cacheLock;
         this.cacheCondition = cacheLock.newCondition();
-        this.cache = new LinkedList<>();
+        this.cache = cache;
         this.closed = false;
     }
     
@@ -48,6 +53,7 @@ public class StoredMetricReadCache extends AbstractIterator<StoredMetric> implem
                 }
             }
             cache.addLast(input);
+            cacheCondition.signalAll();
             return true;
         } finally {
             this.cacheLock.unlock();
