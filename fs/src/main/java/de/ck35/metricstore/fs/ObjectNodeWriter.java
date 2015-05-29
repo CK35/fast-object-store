@@ -19,6 +19,13 @@ import com.google.common.base.Function;
 
 import de.ck35.metricstore.util.MetricsIOException;
 
+/**
+ * Writer for JSON ObjectNodes. The nodes are written gziped into a path of the filesystem.
+ * Default Charset for writing is UTF-8.
+ *
+ * @author Christian Kaspari
+ * @since 1.0.0
+ */
 public class ObjectNodeWriter implements Closeable {
 
 	private final Path path;

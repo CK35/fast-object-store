@@ -23,6 +23,13 @@ import com.google.common.base.Function;
 
 import de.ck35.metricstore.util.MetricsIOException;
 
+/**
+ * Reader for JSON ObjectNodes. The nodes are read from a path which contains gzip content.
+ * Default Charset for reading is UTF-8.
+ *
+ * @author Christian Kaspari
+ * @since 1.0.0
+ */
 public class ObjectNodeReader implements Closeable {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(ObjectNodeReader.class);

@@ -11,6 +11,13 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Holds all data for one Bucket. The {@link #create(Path, String, String)} and {@link #load(Path)}
+ * Methods can be used to write the Bucket data to the file system or load the data again.
+ *
+ * @author Christian Kaspari
+ * @since 1.0.0
+ */
 public class BucketData {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BucketData.class);

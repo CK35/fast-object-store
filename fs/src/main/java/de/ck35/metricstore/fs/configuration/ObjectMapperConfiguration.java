@@ -7,6 +7,12 @@ import com.fasterxml.jackson.core.JsonGenerator.Feature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
+/**
+ * Configuration for the shared {@link ObjectMapper}. 
+ *
+ * @author Christian Kaspari
+ * @since 1.0.0
+ */
 @Configuration
 public class ObjectMapperConfiguration {
 

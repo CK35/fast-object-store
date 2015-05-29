@@ -9,9 +9,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jmx.export.annotation.ManagedAttribute;
+import org.springframework.jmx.export.annotation.ManagedResource;
 
 import com.google.common.base.Function;
 
@@ -24,6 +28,15 @@ import de.ck35.metricstore.fs.BucketCommand.ReadCommand;
 import de.ck35.metricstore.fs.BucketCommand.WriteCommand;
 import de.ck35.metricstore.util.MetricsIOException;
 
+/**
+ * Responsible for processing commands. This class holds a collection of {@link WritableFilesystemBucket}
+ * inside the {@link #run()} Method. All commands are applied to these buckets in sequence. Thus the
+ * single Buckets don not need to be Threadsafe.
+ * 
+ * @author Christian Kaspari
+ * @since 1.0.0
+ */
+@ManagedResource
 public class BucketCommandProcessor implements Runnable {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(BucketCommandProcessor.class);
@@ -32,6 +45,16 @@ public class BucketCommandProcessor implements Runnable {
 	private final Function<BucketData, WritableFilesystemBucket> pathBucketFactory;
 	
 	private final BlockingQueue<BucketCommand<?>> commands;
+	
+	private final AtomicLong totalProcessedCommands;
+    private final AtomicLong totalProcessedWriteCommands;
+    private final AtomicLong totalProcessedReadCommands;
+    private final AtomicLong totalProcessedListBucketCommands;
+    private final AtomicLong totalProcessedCompressCommands;
+    private final AtomicLong totalProcessedDeleteCommands;
+    private final AtomicLong totalUnknownCommands;
+    private final AtomicLong totalFailedCommands;
+    private final AtomicReference<String> runningCommand;
 
 	public BucketCommandProcessor(Path basePath,
 	                        	  Function<BucketData, WritableFilesystemBucket> pathBucketFactory, 
@@ -39,6 +62,15 @@ public class BucketCommandProcessor implements Runnable {
 		this.basePath = basePath;
 		this.pathBucketFactory = pathBucketFactory;
 		this.commands = commands;
+		this.totalProcessedCommands = new AtomicLong();
+		this.totalProcessedWriteCommands = new AtomicLong();
+		this.totalProcessedReadCommands = new AtomicLong();
+		this.totalProcessedListBucketCommands = new AtomicLong();
+		this.totalProcessedCompressCommands = new AtomicLong();
+		this.totalProcessedDeleteCommands = new AtomicLong();
+		this.totalUnknownCommands = new AtomicLong();
+		this.totalFailedCommands = new AtomicLong();
+		this.runningCommand = new AtomicReference<>();
 	}
 
 	@Override
@@ -50,12 +82,15 @@ public class BucketCommandProcessor implements Runnable {
 			    BucketCommandProcessorThread.initialized();
 				while(!Thread.interrupted()) {
 					BucketCommand<?> command = commands.take();
-					try {						
+					try {
+					    runningCommand.set(command.toString());
 						runCommand(command, context);
 					} catch(Exception e) {
 						LOG.error("Error while working on command: '{}'!", command, e);
+						totalFailedCommands.incrementAndGet();
 					} finally {
 						command.commandCompleted();
+						runningCommand.set(null);
 					}
 				}
 			} catch(InterruptedException e) {
@@ -86,22 +121,29 @@ public class BucketCommandProcessor implements Runnable {
 	}
 	
 	public void runCommand(BucketCommand<?> command, Context context) {
+	    totalProcessedCommands.incrementAndGet();
 		if(command instanceof WriteCommand) {
+		    totalProcessedWriteCommands.incrementAndGet();
 			command.setResult(runWriteCommand((WriteCommand) command, context));
 			
 		} else if(command instanceof ReadCommand) {
+		    totalProcessedReadCommands.incrementAndGet();
 			runReadCommand((ReadCommand) command, context);
 			
 		} else if(command instanceof ListBucketsCommand) {
+		    totalProcessedListBucketCommands.incrementAndGet();
 			command.setResult(runListBucketsCommand((ListBucketsCommand) command, context));
 			
 		} else if(command instanceof CompressCommand) {
+		    totalProcessedCompressCommands.incrementAndGet();
 			runCompressCommand((CompressCommand) command, context);
 			
 		} else if(command instanceof DeleteCommand) {
+		    totalProcessedDeleteCommands.incrementAndGet();
 			runDeleteCommand((DeleteCommand) command, context);
 			
 		} else {
+		    totalUnknownCommands.incrementAndGet();
 			throw new IllegalArgumentException("Unknown command!");
 		}
 	}
@@ -174,4 +216,45 @@ public class BucketCommandProcessor implements Runnable {
 			return buckets;
 		}
 	}
+
+	@ManagedAttribute
+    public long getPendingCommands() {
+        return commands.size();
+    }
+	@ManagedAttribute
+    public long getTotalProcessedCommands() {
+        return totalProcessedCommands.get();
+    }
+	@ManagedAttribute
+    public long getTotalProcessedWriteCommands() {
+        return totalProcessedWriteCommands.get();
+    }
+	@ManagedAttribute
+    public long getTotalProcessedReadCommands() {
+        return totalProcessedReadCommands.get();
+    }
+	@ManagedAttribute
+    public long getTotalProcessedListBucketCommands() {
+        return totalProcessedListBucketCommands.get();
+    }
+	@ManagedAttribute
+    public long getTotalProcessedCompressCommands() {
+        return totalProcessedCompressCommands.get();
+    }
+	@ManagedAttribute
+    public long getTotalProcessedDeleteCommands() {
+        return totalProcessedDeleteCommands.get();
+    }
+	@ManagedAttribute
+    public long getTotalUnknownCommands() {
+        return totalUnknownCommands.get();
+    }
+	@ManagedAttribute
+    public long getTotalFailedCommands() {
+        return totalFailedCommands.get();
+    }
+	@ManagedAttribute
+	public String getRunningCommand() {
+        return runningCommand.get();
+    }
 }

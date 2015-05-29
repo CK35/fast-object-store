@@ -24,10 +24,17 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
 
+import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
 import de.ck35.metricstore.util.LRUCache;
 import de.ck35.metricstore.util.MetricsIOException;
 
+/**
+ * {@link MetricBucket} implementation which allows writing, deleting and compressing. 
+ *
+ * @author Christian Kaspari
+ * @since 1.0.0
+ */
 public class WritableFilesystemBucket extends ReadableFilesystemBucket implements Closeable {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(WritableFilesystemBucket.class);
@@ -88,7 +95,19 @@ public class WritableFilesystemBucket extends ReadableFilesystemBucket implement
 				throw new MetricsIOException("Could not create day directories for minute file: '" + minuteFile + "'!", e);
 			}
 			writer = writerFactory.apply(minuteFile);
-			writers.put(minuteFile, writer);
+			IOException firstCloseException = null;
+			for(ObjectNodeWriter oldWriter : writers.put(minuteFile, writer)) {
+			    try {
+                    oldWriter.close();
+                } catch (IOException e) {
+                    if(firstCloseException == null) {
+                        firstCloseException = e;
+                    }
+                }
+			}
+			if(firstCloseException != null) {			    
+			    throw new MetricsIOException("Could not close old writer!", firstCloseException);
+			}
 		}
 		writer.write(objectNode);
 		return StoredObjectNodeReader.storedObjectNode(this, timestamp, objectNode);

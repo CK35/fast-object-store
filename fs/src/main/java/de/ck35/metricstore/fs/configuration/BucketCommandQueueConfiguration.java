@@ -10,6 +10,12 @@ import org.springframework.core.env.Environment;
 
 import de.ck35.metricstore.fs.BucketCommand;
 
+/**
+ * Configuration for the shared command queue. 
+ *
+ * @author Christian Kaspari
+ * @since 1.0.0
+ */
 @Configuration
 public class BucketCommandQueueConfiguration {
 

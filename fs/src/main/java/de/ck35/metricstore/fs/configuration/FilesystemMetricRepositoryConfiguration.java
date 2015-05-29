@@ -13,6 +13,12 @@ import de.ck35.metricstore.fs.BucketCommand;
 import de.ck35.metricstore.fs.FilesystemMetricRepository;
 import de.ck35.metricstore.util.MinimumIntSetting;
 
+/**
+ * Configuration for the {@link FilesystemMetricRepository}. 
+ *
+ * @author Christian Kaspari
+ * @since 1.0.0
+ */
 @Configuration
 public class FilesystemMetricRepositoryConfiguration {
 

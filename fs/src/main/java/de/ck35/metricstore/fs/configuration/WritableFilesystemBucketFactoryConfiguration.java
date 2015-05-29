@@ -21,6 +21,12 @@ import de.ck35.metricstore.util.JsonNodeExtractor;
 import de.ck35.metricstore.util.MinimumIntSetting;
 import de.ck35.metricstore.util.TimestampFunction;
 
+/**
+ * Configuration for the {@link WritableFilesystemBucketFactory}.
+ *
+ * @author Christian Kaspari
+ * @since 1.0.0
+ */
 @Configuration
 public class WritableFilesystemBucketFactoryConfiguration {
 

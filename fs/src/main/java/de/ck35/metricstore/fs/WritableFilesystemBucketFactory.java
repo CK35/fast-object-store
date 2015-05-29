@@ -10,6 +10,12 @@ import com.google.common.base.Supplier;
 
 import de.ck35.metricstore.util.LRUCache;
 
+/**
+ * Factory for {@link WritableFilesystemBucket}. 
+ *
+ * @author Christian Kaspari
+ * @since 1.0.0
+ */
 public class WritableFilesystemBucketFactory implements Function<BucketData, WritableFilesystemBucket> {
 
     private final Function<ObjectNode, DateTime> timestampFunction;

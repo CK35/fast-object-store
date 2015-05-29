@@ -18,6 +18,12 @@ import de.ck35.metricstore.fs.BucketData;
 import de.ck35.metricstore.fs.BucketCommandProcessorThread;
 import de.ck35.metricstore.fs.WritableFilesystemBucket;
 
+/**
+ * Configuration for the {@link BucketCommandProcessor}. 
+ *
+ * @author Christian Kaspari
+ * @since 1.0.0
+ */
 @Configuration
 public class BucketCommandProcessorConfiguration {
 

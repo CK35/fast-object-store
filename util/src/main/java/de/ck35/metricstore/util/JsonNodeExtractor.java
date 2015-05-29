@@ -8,13 +8,24 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
 import com.google.common.base.Splitter;
 
+/**
+ * Strategy switch for JsonNode extractor implementations. A JsonNode is extracted from a
+ * JSON Document (a tree of Nodes) by walking a path of nested fields. The path is described
+ * by a String which holds a list of path tokens joined by a {@value #SEPARATOR}. The {@link #forPath(String)}
+ * Methods selects the best extract Method for a supplied node path String.
+ *
+ * @author Christian Kaspari
+ * @since 1.0.0
+ */
 public class JsonNodeExtractor {
 
-	public static Function<ObjectNode, JsonNode> forPath(String nodePath) {
+	public static final String SEPARATOR = ".";
+
+    public static Function<ObjectNode, JsonNode> forPath(String nodePath) {
 		if(nodePath == null || nodePath.trim().isEmpty()) {
 			throw new IllegalArgumentException("Empty node path is not allowed!");
 		}
-		Splitter splitter = Splitter.on(".").trimResults().omitEmptyStrings();
+		Splitter splitter = Splitter.on(SEPARATOR).trimResults().omitEmptyStrings();
 		List<String> tokens = splitter.splitToList(nodePath);
 		if(tokens.isEmpty()) {
 			throw new IllegalArgumentException("No tokens found inside node path: '" + nodePath + "'.");

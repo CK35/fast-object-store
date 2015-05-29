@@ -17,6 +17,13 @@ import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
 import de.ck35.metricstore.util.MetricsIOException;
 
+/**
+ * A read-only implementation of a {@link MetricBucket}. 
+ *
+ * @author Christian Kaspari
+ * @since 1.0.0
+ * @see WritableFilesystemBucket
+ */
 public class ReadableFilesystemBucket implements MetricBucket {
 
 	private final BucketData bucketData;

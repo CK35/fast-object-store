@@ -16,6 +16,14 @@ import com.google.common.base.Predicate;
 import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
 
+/**
+ * Holds all commands which can be processed by the {@link BucketCommandProcessor}.
+ * 
+ * @param <T> The result type of a command.
+ *
+ * @author Christian Kaspari
+ * @since 1.0.0
+ */
 public class BucketCommand<T> extends Observable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BucketCommand.class);

@@ -14,7 +14,16 @@ import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Collections2;
+import com.google.common.collect.ImmutableList;
 
+/**
+ * 
+ * @param <K>
+ * @param <V>
+ *
+ * @author Christian Kaspari
+ * @since 1.0.0
+ */
 public class LRUCache<K, V> implements Iterable<V> {
 
 	private final Supplier<Integer> maxCachedEntriesSupplier;
@@ -39,18 +48,21 @@ public class LRUCache<K, V> implements Iterable<V> {
 		return entry.get();
 	}
 	
-	public V put(K key, V value) {
+	public Iterable<V> put(K key, V value) {
 		CacheEntry<V> old = cache.put(key, new CacheEntry<>(value));
 		int maxCachedEntries = maxCachedEntriesSupplier.get();
 		if(cache.size() > maxCachedEntries) {
+		    ImmutableList.Builder<V> oldValues = ImmutableList.builder();
 			List<Entry<K, CacheEntry<V>>> list = new ArrayList<>(cache.entrySet());
 			Collections.sort(list, comparator);
 			int index = 0;
 			while(cache.size() > maxCachedEntries) {
-				cache.remove(list.get(index++).getKey());
+			    oldValues.add(cache.remove(list.get(index++).getKey()).get());
 			}
+			return oldValues.build();
+		} else {
+		    return old == null ? Collections.<V>emptyList() : Collections.singleton(old.get());
 		}
-		return old == null ? null : old.get();
 	}
 	
 	public V remove(K key) {

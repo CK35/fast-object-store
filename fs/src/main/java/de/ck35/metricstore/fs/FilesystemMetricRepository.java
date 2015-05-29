@@ -16,6 +16,12 @@ import de.ck35.metricstore.fs.BucketCommand.ReadCommand;
 import de.ck35.metricstore.fs.BucketCommand.WriteCommand;
 import de.ck35.metricstore.util.DayBasedIntervalSplitter;
 
+/**
+ * The filesystem based implementation of the {@link MetricRepository}. 
+ *
+ * @author Christian Kaspari
+ * @since 1.0.0
+ */
 public class FilesystemMetricRepository implements MetricRepository {
 
 	private final BlockingQueue<BucketCommand<?>> commands;
