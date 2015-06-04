@@ -8,7 +8,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -37,14 +36,12 @@ import de.ck35.metricstore.util.MetricsIOException;
  * @since 1.0.0
  */
 @ManagedResource
-public class BucketCommandProcessor implements Runnable {
+public class BucketCommandProcessor {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(BucketCommandProcessor.class);
 
 	private final Path basePath;
 	private final Function<BucketData, WritableFilesystemBucket> pathBucketFactory;
-	
-	private final BlockingQueue<BucketCommand<?>> commands;
 	
 	private final AtomicLong totalProcessedCommands;
     private final AtomicLong totalProcessedWriteCommands;
@@ -57,11 +54,9 @@ public class BucketCommandProcessor implements Runnable {
     private final AtomicReference<String> runningCommand;
 
 	public BucketCommandProcessor(Path basePath,
-	                        	  Function<BucketData, WritableFilesystemBucket> pathBucketFactory, 
-	                        	  BlockingQueue<BucketCommand<?>> commands) {
+	                        	  Function<BucketData, WritableFilesystemBucket> pathBucketFactory) {
 		this.basePath = basePath;
 		this.pathBucketFactory = pathBucketFactory;
-		this.commands = commands;
 		this.totalProcessedCommands = new AtomicLong();
 		this.totalProcessedWriteCommands = new AtomicLong();
 		this.totalProcessedReadCommands = new AtomicLong();
@@ -73,36 +68,7 @@ public class BucketCommandProcessor implements Runnable {
 		this.runningCommand = new AtomicReference<>();
 	}
 
-	@Override
-	public void run() {
-		Context context = new Context();
-		try {
-			init(context);
-			try {
-			    BucketCommandProcessorThread.initialized();
-				while(!Thread.interrupted()) {
-					BucketCommand<?> command = commands.take();
-					try {
-					    runningCommand.set(command.toString());
-						runCommand(command, context);
-					} catch(Exception e) {
-						LOG.error("Error while working on command: '{}'!", command, e);
-						totalFailedCommands.incrementAndGet();
-					} finally {
-						command.commandCompleted();
-						runningCommand.set(null);
-					}
-				}
-			} catch(InterruptedException e) {
-				LOG.info("Command processor has been interrupted and will be closed now.");
-			}
-		} finally {
-			close(context.getBuckets().values());
-		}
-	}
-	
 	public void init(Context context) {
-		close(context.getBuckets().values());
 		try {
 			try(DirectoryStream<Path> stream = Files.newDirectoryStream(basePath, new Filter<Path>() {
 				@Override
@@ -120,32 +86,51 @@ public class BucketCommandProcessor implements Runnable {
 		}
 	}
 	
+	public void close(Context context) {
+        for(WritableFilesystemBucket bucket : context.getBuckets().values()) {
+            try {               
+                bucket.close();
+            } catch(IOException e) {
+                LOG.warn("Error while closing bucket: {}.", bucket.getBucketData(), e);
+            }
+        }
+    }
+	
 	public void runCommand(BucketCommand<?> command, Context context) {
-	    totalProcessedCommands.incrementAndGet();
-		if(command instanceof WriteCommand) {
-		    totalProcessedWriteCommands.incrementAndGet();
-			command.setResult(runWriteCommand((WriteCommand) command, context));
-			
-		} else if(command instanceof ReadCommand) {
-		    totalProcessedReadCommands.incrementAndGet();
-			runReadCommand((ReadCommand) command, context);
-			
-		} else if(command instanceof ListBucketsCommand) {
-		    totalProcessedListBucketCommands.incrementAndGet();
-			command.setResult(runListBucketsCommand((ListBucketsCommand) command, context));
-			
-		} else if(command instanceof CompressCommand) {
-		    totalProcessedCompressCommands.incrementAndGet();
-			runCompressCommand((CompressCommand) command, context);
-			
-		} else if(command instanceof DeleteCommand) {
-		    totalProcessedDeleteCommands.incrementAndGet();
-			runDeleteCommand((DeleteCommand) command, context);
-			
-		} else {
-		    totalUnknownCommands.incrementAndGet();
-			throw new IllegalArgumentException("Unknown command!");
-		}
+	    try {	        
+	        runningCommand.set(command.toString());
+	        totalProcessedCommands.incrementAndGet();
+	        if(command instanceof WriteCommand) {
+	            totalProcessedWriteCommands.incrementAndGet();
+	            command.setResult(runWriteCommand((WriteCommand) command, context));
+	            
+	        } else if(command instanceof ReadCommand) {
+	            totalProcessedReadCommands.incrementAndGet();
+	            runReadCommand((ReadCommand) command, context);
+	            
+	        } else if(command instanceof ListBucketsCommand) {
+	            totalProcessedListBucketCommands.incrementAndGet();
+	            command.setResult(runListBucketsCommand((ListBucketsCommand) command, context));
+	            
+	        } else if(command instanceof CompressCommand) {
+	            totalProcessedCompressCommands.incrementAndGet();
+	            runCompressCommand((CompressCommand) command, context);
+	            
+	        } else if(command instanceof DeleteCommand) {
+	            totalProcessedDeleteCommands.incrementAndGet();
+	            runDeleteCommand((DeleteCommand) command, context);
+	            
+	        } else {
+	            totalUnknownCommands.incrementAndGet();
+	            throw new IllegalArgumentException("Unknown command!");
+	        }
+	    } catch(Exception e) {
+            LOG.error("Error while working on command: '{}'!", command, e);
+            totalFailedCommands.incrementAndGet();
+	    } finally {
+	        command.commandCompleted();
+            runningCommand.set(null);
+	    }
 	}
 	
 	public Iterable<MetricBucket> runListBucketsCommand(ListBucketsCommand command, Context context) {
@@ -195,16 +180,6 @@ public class BucketCommandProcessor implements Runnable {
 		bucket.deletAll(command.getDeleteUntil());
 	}
 	
-	public static void close(Iterable<WritableFilesystemBucket> buckets) {
-		for(WritableFilesystemBucket bucket : buckets) {
-			try {				
-				bucket.close();
-			} catch(IOException e) {
-				LOG.warn("Error while closing bucket: {}.", bucket.getBucketData(), e);
-			}
-		}
-	}
-	
 	public static class Context {
 		
 		private Map<String, WritableFilesystemBucket> buckets;
@@ -217,10 +192,6 @@ public class BucketCommandProcessor implements Runnable {
 		}
 	}
 
-	@ManagedAttribute
-    public long getPendingCommands() {
-        return commands.size();
-    }
 	@ManagedAttribute
     public long getTotalProcessedCommands() {
         return totalProcessedCommands.get();

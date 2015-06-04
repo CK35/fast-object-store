@@ -1,12 +1,13 @@
 package de.ck35.metricstore.fs;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -33,13 +34,14 @@ import de.ck35.metricstore.api.StoredMetricCallable;
 import de.ck35.metricstore.fs.BucketCommand.ListBucketsCommand;
 import de.ck35.metricstore.fs.BucketCommand.ReadCommand;
 import de.ck35.metricstore.fs.BucketCommand.WriteCommand;
+import de.ck35.metricstore.util.MetricsIOException;
 import de.ck35.metricstore.util.MinimumIntSetting;
 
 @RunWith(MockitoJUnitRunner.class)
 public class FilesystemMetricRepositoryTest {
 
     private MinimumIntSetting readBufferSizeSetting;
-    @Mock BlockingQueue<BucketCommand<?>> commands;
+    @Mock Predicate<BucketCommand<?>> commands;
     
     @Before
     public void before() {
@@ -54,14 +56,15 @@ public class FilesystemMetricRepositoryTest {
     public void testAppendCommand() throws InterruptedException {
         FilesystemMetricRepository repository = filesystemMetricRepository();
         BucketCommand<?> command = mock(BucketCommand.class);
+        doReturn(true).when(commands).apply(any(BucketCommand.class));
         assertEquals(command, repository.appendCommand(command));
-        verify(commands).put(command);
+        verify(commands).apply(command);
     }
     
-    @Test(expected=RuntimeException.class)
+    @Test(expected=MetricsIOException.class)
     public void testAppendCommandFails() throws InterruptedException {
         BucketCommand<?> command = mock(BucketCommand.class);
-        doThrow(InterruptedException.class).when(commands).put(command);
+        doReturn(false).when(commands).apply(command);
         FilesystemMetricRepository repository = filesystemMetricRepository();
         repository.appendCommand(command);
     }
@@ -71,7 +74,7 @@ public class FilesystemMetricRepositoryTest {
         assertFalse(Thread.interrupted());
         List<MetricBucket> expected = Arrays.asList(mock(MetricBucket.class));
         BucketCommandAnswer commandAnswer = new BucketCommandAnswer(expected);
-        doAnswer(commandAnswer).when(commands).put(any(BucketCommand.class));
+        doAnswer(commandAnswer).when(commands).apply(any(BucketCommand.class));
         assertEquals(expected, filesystemMetricRepository().listBuckets());
         assertTrue(commandAnswer.getCommand().isPresent());
         BucketCommand<?> bucketCommand = commandAnswer.getCommand().get();
@@ -82,7 +85,7 @@ public class FilesystemMetricRepositoryTest {
     public void testWirte() throws InterruptedException {
         StoredMetric expected = mock(StoredMetric.class);
         BucketCommandAnswer commandAnswer = new BucketCommandAnswer(expected);
-        doAnswer(commandAnswer).when(commands).put(any(BucketCommand.class));
+        doAnswer(commandAnswer).when(commands).apply(any(BucketCommand.class));
         String bucketName = "a";
         String bucketType = "b";
         ObjectNode objectNode = new ObjectMapper().getNodeFactory().objectNode();
@@ -101,7 +104,7 @@ public class FilesystemMetricRepositoryTest {
         FilesystemMetricRepository repository = filesystemMetricRepository();
         List<StoredMetric> metrics = ImmutableList.of(mock(StoredMetric.class));
         ReadCommandAnswer commandAnswer = new ReadCommandAnswer(metrics);
-        doAnswer(commandAnswer).when(commands).put(any(BucketCommand.class));
+        doAnswer(commandAnswer).when(commands).apply(any(BucketCommand.class));
         StoredMetricCallable callable = mock(StoredMetricCallable.class);
         String bucketName = "a";
         Interval interval = new Interval(new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC), Period.minutes(1));
@@ -118,7 +121,7 @@ public class FilesystemMetricRepositoryTest {
         assertEquals(interval, readCommand.getInterval());
     }
 
-    public static class BucketCommandAnswer implements Answer<Void> {
+    public static class BucketCommandAnswer implements Answer<Boolean> {
         
         private final Object result;
         
@@ -129,12 +132,12 @@ public class FilesystemMetricRepositoryTest {
             this.command = Optional.absent();
         }
         @Override
-        public Void answer(InvocationOnMock invocation) {
+        public Boolean answer(InvocationOnMock invocation) {
             BucketCommand<?> bucketCommand = invocation.getArgumentAt(0, BucketCommand.class);
             bucketCommand.setResult(result);
             bucketCommand.commandCompleted();
             setCommand(bucketCommand);
-            return null;
+            return true;
         }
         public void setCommand(BucketCommand<?> command) {
             this.command = Optional.<BucketCommand<?>>of(command);
@@ -153,7 +156,7 @@ public class FilesystemMetricRepositoryTest {
             this.storedMetrics = storedMetrics;
         }
         @Override
-        public Void answer(InvocationOnMock invocation) {
+        public Boolean answer(InvocationOnMock invocation) {
             ReadCommand readCommand = invocation.getArgumentAt(0, ReadCommand.class);
             Predicate<StoredMetric> predicate = readCommand.getPredicate();
             for(StoredMetric metric : storedMetrics) {
@@ -161,7 +164,7 @@ public class FilesystemMetricRepositoryTest {
             }
             readCommand.commandCompleted();
             setCommand(readCommand);
-            return null;
+            return true;
         }
     }
 }

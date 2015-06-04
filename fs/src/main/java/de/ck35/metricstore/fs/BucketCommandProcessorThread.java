@@ -28,14 +28,21 @@ public class BucketCommandProcessorThread extends Thread implements UncaughtExce
     
     private final CountDownLatch initLatch;
     private final AtomicReference<Throwable> uncaughtExceptionRef;
+    private final AtomicReference<Runnable> targetRunnableRef;
     
-    public BucketCommandProcessorThread(Runnable runnable) {
-        super(runnable, NAME);
+    public BucketCommandProcessorThread() {
+        super(NAME);
         this.initLatch = new CountDownLatch(1);
         this.uncaughtExceptionRef = new AtomicReference<>();
         this.setUncaughtExceptionHandler(this);
+        this.targetRunnableRef = new AtomicReference<Runnable>();
     }
 
+    @Override
+    public void run() {
+        targetRunnableRef.get().run();
+    }
+    
     public static void initialized() {
         Thread currentThread = Thread.currentThread();
         if(currentThread instanceof BucketCommandProcessorThread) {
@@ -74,5 +81,9 @@ public class BucketCommandProcessorThread extends Thread implements UncaughtExce
     @ManagedAttribute
     public State getState() {
         return super.getState();
+    }
+    
+    public void setTargetRunnableRef(Runnable runnable) {
+        this.targetRunnableRef.set(runnable);
     }
 }

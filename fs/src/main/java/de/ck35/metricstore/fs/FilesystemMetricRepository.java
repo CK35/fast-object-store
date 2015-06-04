@@ -1,10 +1,9 @@
 package de.ck35.metricstore.fs;
 
-import java.util.concurrent.BlockingQueue;
-
 import org.joda.time.Interval;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 
 import de.ck35.metricstore.api.MetricBucket;
@@ -15,6 +14,7 @@ import de.ck35.metricstore.fs.BucketCommand.ListBucketsCommand;
 import de.ck35.metricstore.fs.BucketCommand.ReadCommand;
 import de.ck35.metricstore.fs.BucketCommand.WriteCommand;
 import de.ck35.metricstore.util.DayBasedIntervalSplitter;
+import de.ck35.metricstore.util.MetricsIOException;
 
 /**
  * The filesystem based implementation of the {@link MetricRepository}. 
@@ -24,21 +24,19 @@ import de.ck35.metricstore.util.DayBasedIntervalSplitter;
  */
 public class FilesystemMetricRepository implements MetricRepository {
 
-	private final BlockingQueue<BucketCommand<?>> commands;
+	private final Predicate<BucketCommand<?>> commands;
 	private final Supplier<Integer> readBufferSizeSetting;
 	
-	public FilesystemMetricRepository(BlockingQueue<BucketCommand<?>> commands,
+	public FilesystemMetricRepository(Predicate<BucketCommand<?>> commands,
 	                                  Supplier<Integer> readBufferSizeSetting) {
 		this.commands = commands;
         this.readBufferSizeSetting = readBufferSizeSetting;
 	}
 	
 	public <T extends BucketCommand<?>> T appendCommand(T command) {
-		try {
-			commands.put(command);
-		} catch (InterruptedException e) {
-			throw new RuntimeException("Interrupted while appending command: '" + command + "' into queue!", e);
-		}
+	    if(!commands.apply(command)) {
+	        throw new MetricsIOException("Could not append next command: '" + command + "' into queue!", null);
+	    }
 		return command;
 	}
 	
