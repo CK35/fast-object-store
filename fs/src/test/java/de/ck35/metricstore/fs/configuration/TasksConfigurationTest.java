@@ -1,4 +1,4 @@
-package de.ck35.metricstore.fs;
+package de.ck35.metricstore.fs.configuration;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
+import de.ck35.metricstore.fs.FilesystemMetricRepository;
 import de.ck35.metricstore.fs.configuration.PropPrefix;
 import de.ck35.metricstore.fs.configuration.TasksConfiguration;
 

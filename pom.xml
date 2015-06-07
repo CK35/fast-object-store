@@ -27,6 +27,7 @@
 	
 	<modules>
 	   <module>api</module>
+	   <module>benchmark</module>
 	   <module>fs</module>
 	   <module>util</module>
 	</modules>
