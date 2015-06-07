@@ -30,7 +30,7 @@ public class TasksConfigurationTest {
 		try(AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(TestFilesystemMetricRepositoryConfiguration.class, 
 		                                                                                        TasksConfiguration.class)) {
 			ThreadPoolTaskScheduler taskScheduler = (ThreadPoolTaskScheduler) context.getBean("taskScheduler");
-			assertEquals(2, taskScheduler.getScheduledThreadPoolExecutor().getTaskCount());
+			assertTrue(taskScheduler.getScheduledThreadPoolExecutor().getTaskCount() >= 2);
 		}
 	}
 
