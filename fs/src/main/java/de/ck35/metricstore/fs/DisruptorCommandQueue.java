@@ -5,10 +5,13 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.lmax.disruptor.BlockingWaitStrategy;
 import com.lmax.disruptor.EventFactory;
 import com.lmax.disruptor.EventTranslator;
 import com.lmax.disruptor.LifecycleAware;
@@ -79,7 +82,7 @@ public class DisruptorCommandQueue implements Predicate<BucketCommand<?>>, Close
                 case SleepingWaitStrategy: return new SleepingWaitStrategy(env.getProperty(prefix.apply("SleepingWaitStrategy."), Integer.class, 200));
                 case TimeoutBlockingWaitStrategy: return new TimeoutBlockingWaitStrategy(env.getRequiredProperty(prefix.apply("TimeoutBlockingWaitStrategy.timeout"), Long.class), 
                                                                                          env.getRequiredProperty(prefix.apply("TimeoutBlockingWaitStrategy.unit"), TimeUnit.class));
-                default: return (WaitStrategy) DisruptorCommandQueue.class.getClassLoader().loadClass(strategy.toString()).newInstance();
+                default: return (WaitStrategy) DisruptorCommandQueue.class.getClassLoader().loadClass(BlockingWaitStrategy.class.getPackage().getName() + "." + strategy.toString()).newInstance();
             }
         } catch(Exception e) {
             throw new RuntimeException("Could not create wait strategy: '" + strategy + "'!", e);
@@ -118,6 +121,8 @@ public class DisruptorCommandQueue implements Predicate<BucketCommand<?>>, Close
     }
     public static class BucketCommandWorkHandler implements WorkHandler<BucketCommandEvent>, LifecycleAware {
         
+        private static final Logger LOG = LoggerFactory.getLogger(DisruptorCommandQueue.BucketCommandWorkHandler.class);
+        
         private final Context context;
         private final BucketCommandProcessor bucketCommandProcessor;
         
@@ -126,8 +131,12 @@ public class DisruptorCommandQueue implements Predicate<BucketCommand<?>>, Close
             this.bucketCommandProcessor = bucketCommandProcessor;
         }
         @Override
-        public void onEvent(BucketCommandEvent event) throws Exception {
-            this.bucketCommandProcessor.runCommand(event.getBucketCommand(), context);
+        public void onEvent(BucketCommandEvent event) {
+            try {                
+                this.bucketCommandProcessor.runCommand(event.getBucketCommand(), context);
+            } catch(RuntimeException e) {
+                LOG.error("Error while running command: '{}'!", event.getBucketCommand(), e);
+            }
         }
         @Override
         public void onStart() {

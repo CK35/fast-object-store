@@ -3,6 +3,7 @@ package de.ck35.metricstore.fs.configuration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -41,7 +42,7 @@ public class BucketCommandQueueConfiguration {
         
     }
     
-    public static int DEFAULT_COMMAND_CAPACITY = 10_000;
+    public static int DEFAULT_COMMAND_CAPACITY = (int) Math.pow(2, 14); //16 384
     public static QueueMode DEFAULT_QUEUE_MODE = QueueMode.ABQ;
     public static DisruptorWaitStrategy DEFAULT_WAIT_STRATEGY = DisruptorWaitStrategy.BlockingWaitStrategy;
     
@@ -53,10 +54,15 @@ public class BucketCommandQueueConfiguration {
     public Predicate<BucketCommand<?>> bucketCommandQueue() throws Throwable {
         if(QueueMode.DISRUPTOR == getQueueMode()) {
             ExecutorService executor = Executors.newFixedThreadPool(1, new ThreadFactory() {
+                private AtomicBoolean created = new AtomicBoolean();
                 @Override
                 public Thread newThread(Runnable runnable) {
-                    bucketCommandProcessorThread.setTargetRunnableRef(runnable);
-                    return bucketCommandProcessorThread;
+                    if(created.compareAndSet(false, true)) {
+                        bucketCommandProcessorThread.setTargetRunnableRef(runnable);
+                        return bucketCommandProcessorThread;
+                    } else {
+                        return null;
+                    }
                 }
             });
             DisruptorCommandQueue commandQueue = DisruptorCommandQueue.build(getQueueSize(), 
