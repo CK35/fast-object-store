@@ -1,6 +1,7 @@
 package de.ck35.metricstore.fs;
 
 import org.joda.time.Interval;
+import org.joda.time.LocalDate;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Predicate;
@@ -10,6 +11,8 @@ import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.MetricRepository;
 import de.ck35.metricstore.api.StoredMetric;
 import de.ck35.metricstore.api.StoredMetricCallable;
+import de.ck35.metricstore.fs.BucketCommand.CompressCommand;
+import de.ck35.metricstore.fs.BucketCommand.DeleteCommand;
 import de.ck35.metricstore.fs.BucketCommand.ListBucketsCommand;
 import de.ck35.metricstore.fs.BucketCommand.ReadCommand;
 import de.ck35.metricstore.fs.BucketCommand.WriteCommand;
@@ -62,5 +65,13 @@ public class FilesystemMetricRepository implements MetricRepository {
 	            }
 	        }
 	    }
+	}
+	
+	public void compress(MetricBucket bucket, LocalDate compressUntil) {
+		appendCommand(new CompressCommand(bucket.getName(), compressUntil));
+	}
+	
+	public void delete(MetricBucket bucket, LocalDate deleteUntil) {
+		appendCommand(new DeleteCommand(bucket.getName(), deleteUntil));
 	}
 }
