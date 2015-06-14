@@ -2,46 +2,44 @@ package de.ck35.metricstore.benchmark;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
-import java.util.NavigableMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.nio.file.Paths;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
-import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.core.io.PathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
 
-import de.ck35.metricstore.benchmark.Monitor.SystemState;
 import de.ck35.metricstore.benchmark.configuration.BenchmarkConfiguration;
+import de.ck35.metricstore.benchmark.configuration.JMXConfiguration;
 
 public class Main {
 
     public static void main(String[] args) throws Exception {
 		AbortListener.register();
 		try(AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
-		    context.getEnvironment().getPropertySources().addFirst(new ResourcePropertySource("classpath:benchmark.properties"));
-		    context.register(BenchmarkConfiguration.class);
+			Resource resource = new PathResource(Paths.get(System.getProperty("user.dir"), "benchmark.properties"));
+		    context.getEnvironment().getPropertySources().addFirst(new ResourcePropertySource(resource));
+		    context.register(JMXConfiguration.class, BenchmarkConfiguration.class);
 		    context.refresh();
-		    
+
 		    ExecutorService executor = Executors.newFixedThreadPool(2);
 		    try {
-		        Monitor monitor = context.getBean("monitor", Monitor.class);
+		        Monitor monitor = context.getBean(Monitor.class);
 		        executor.submit(monitor);
 		        monitor.awaitRun();
 	            
-	            Benchmark benchmark = context.getBean("benchmark", Benchmark.class);
+	            Benchmark benchmark = context.getBean(Benchmark.class);
 	            executor.submit(benchmark).get();
 	            
 	            ReadVerification readVerification = context.getBean("readVerification", ReadVerification.class);
 	            executor.submit(readVerification).get();
 	            
-//	          Thread reporter = context.getBean("reporter", Thread.class);
-//	          reporter.start();
-//	          reporter.join();
+	            Reporter reporter = context.getBean(Reporter.class);
+	            executor.submit(reporter).get();
 		    } finally {
 		        executor.shutdownNow();
 		    }

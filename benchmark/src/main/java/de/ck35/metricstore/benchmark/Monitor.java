@@ -1,28 +1,29 @@
 package de.ck35.metricstore.benchmark;
 
-import java.util.Collections;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
-import java.util.TreeMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.joda.time.DateTime;
+import org.joda.time.Interval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Maps;
-
-import de.ck35.metricstore.fs.BucketCommandProcessor;
 
 public class Monitor implements Runnable {
 
     private static final Logger LOG = LoggerFactory.getLogger(Monitor.class);
     
-	private final BucketCommandProcessor bucketCommandProcessor;
+	private final Supplier<Optional<Long>> totalProcessedCommandsSupplier;
+	private final Supplier<Optional<Double>> cpuUsageSupplier;
+	private final Supplier<Optional<Double>> heapUsageSupplier;
 	
 	private final AtomicBoolean enabled;
 	private final CountDownLatch runLatch;
@@ -32,8 +33,14 @@ public class Monitor implements Runnable {
     private final int pollTimeout;
     private final TimeUnit unit;
 	
-    public Monitor(BucketCommandProcessor bucketCommandProcessor, int pollTimeout, TimeUnit unit) {
-        this.bucketCommandProcessor = bucketCommandProcessor;
+    public Monitor(Supplier<Optional<Long>> totalProcessedCommandsSupplier,
+                   Supplier<Optional<Double>> cpuUsageSupplier,
+                   Supplier<Optional<Double>> heapUsageSupplier,
+                   int pollTimeout, 
+                   TimeUnit unit) {
+        this.totalProcessedCommandsSupplier = totalProcessedCommandsSupplier;
+		this.cpuUsageSupplier = cpuUsageSupplier;
+		this.heapUsageSupplier = heapUsageSupplier;
         this.pollTimeout = pollTimeout;
         this.unit = unit;
         this.enabled = new AtomicBoolean(true);
@@ -44,22 +51,26 @@ public class Monitor implements Runnable {
 	
 	@Override
 	public void run() {
-	    this.resultLatch.countDown();
-	    NavigableMap<DateTime, SystemState> stateMap = new TreeMap<>();
+	    this.runLatch.countDown();
+	    ImmutableSortedMap.Builder<DateTime, SystemState> stateMap = ImmutableSortedMap.naturalOrder();
 	    try {
 	        try {
 	            Optional<Entry<DateTime, SystemState>> lastState = Optional.absent();
-	            while(enabled.get()) {
+	            while(!Thread.interrupted()) {
 	                DateTime now = now();
-	                lastState = Optional.of(Maps.immutableEntry(now, systemState(lastState)));
+	                lastState = Optional.of(Maps.immutableEntry(now, systemState(now, lastState)));
 	                stateMap.put(now, lastState.get().getValue());
-	                Thread.sleep(TimeUnit.MILLISECONDS.convert(pollTimeout, unit));
+	                if(enabled.get()) {	                	
+	                	Thread.sleep(TimeUnit.MILLISECONDS.convert(pollTimeout, unit));
+	                } else {
+	                	
+	                }
 	            }
 	        } catch (InterruptedException e) {
 	            LOG.warn("Monitor Thread interrupted.");
 	        }
 	    } finally {
-	        resultReference.set(Collections.unmodifiableNavigableMap(stateMap));
+	        resultReference.set(stateMap.build());
 	        resultLatch.countDown();
 	    }
 	}
@@ -74,36 +85,66 @@ public class Monitor implements Runnable {
         return resultReference.get();
     }
 
-    private SystemState systemState(Optional<Entry<DateTime, SystemState>> lastState) {
-        long totalProcessedCommands = bucketCommandProcessor.getTotalProcessedCommands();
-        
-        return new SystemState(0d, 
-                               0d,
+    private SystemState systemState(DateTime now, Optional<Entry<DateTime, SystemState>> lastState) {
+    	Optional<Entry<Long, SystemState>> last = optionalDurationMillis(now, lastState);
+    	Optional<Long> totalProcessedCommands = totalProcessedCommandsSupplier.get();
+    	Optional<Double> processedCommandsPerSecond;
+    	if(last.isPresent()) {
+    		long commands = totalProcessedCommands.or(0l) - last.get().getValue().getTotalProcessedCommands().or(0l);
+    		if(commands < 0) {
+    			processedCommandsPerSecond = Optional.absent();
+    		} else {    			
+    			processedCommandsPerSecond = Optional.of((commands/(double)last.get().getKey())*60000.0);
+    		}
+    	} else {
+    		processedCommandsPerSecond = Optional.absent();
+    	}
+        return new SystemState(cpuUsageSupplier.get(), 
+                               heapUsageSupplier.get(),
                                totalProcessedCommands, 
-                               0);
+                               processedCommandsPerSecond);
     }
-	
+    
+    public static Optional<Entry<Long, SystemState>> optionalDurationMillis(DateTime now, Optional<Entry<DateTime, SystemState>> lastState) {
+    	if(lastState.isPresent()) {
+    		return Optional.of(Maps.immutableEntry(new Interval(now, lastState.get().getKey()).toDurationMillis(), lastState.get().getValue()));
+    	} else {
+    		return Optional.absent();
+    	}
+    }
+    
 	public DateTime now() {
 	    return DateTime.now();
 	}
 	
 	public static class SystemState {
 	    
-	    private final double cpuUsage;
-	    private final double heapUsage;
-	    private final long totalProcessedCommands;
-	    private final long processedCommandsPerMinute;
+	    private final Optional<Double> cpuUsage;
+	    private final Optional<Double> heapUsage;
+	    private final Optional<Long> totalProcessedCommands;
+	    private final Optional<Double> processedCommandsPerSecond;
 	    
-        public SystemState(double cpuUsage,
-                           double heapUsage,
-                           long totalProcessedCommands,
-                           long processedCommandsPerMinute) {
-            this.cpuUsage = cpuUsage;
-            this.heapUsage = heapUsage;
-            this.totalProcessedCommands = totalProcessedCommands;
-            this.processedCommandsPerMinute = processedCommandsPerMinute;
-        }
-	    
-	    
+		public SystemState(Optional<Double> cpuUsage, 
+		                   Optional<Double> heapUsage, 
+		                   Optional<Long> totalProcessedCommands, 
+		                   Optional<Double> processedCommandsPerSecond) {
+			this.cpuUsage = cpuUsage;
+			this.heapUsage = heapUsage;
+			this.totalProcessedCommands = totalProcessedCommands;
+			this.processedCommandsPerSecond = processedCommandsPerSecond;
+		}
+
+		public Optional<Double> getCpuUsage() {
+			return cpuUsage;
+		}
+		public Optional<Double> getHeapUsage() {
+			return heapUsage;
+		}
+		public Optional<Long> getTotalProcessedCommands() {
+			return totalProcessedCommands;
+		}
+		public Optional<Double> getProcessedCommandsPerSecond() {
+			return processedCommandsPerSecond;
+		}
 	}
 }

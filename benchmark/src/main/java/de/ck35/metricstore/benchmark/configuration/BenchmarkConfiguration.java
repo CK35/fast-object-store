@@ -5,6 +5,10 @@ import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+import javax.management.MBeanServer;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
+
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
@@ -26,10 +30,10 @@ import de.ck35.metricstore.benchmark.Benchmark;
 import de.ck35.metricstore.benchmark.BucketInfo;
 import de.ck35.metricstore.benchmark.DataGenerator;
 import de.ck35.metricstore.benchmark.DataIterable;
+import de.ck35.metricstore.benchmark.MBeanAttributeSupplier;
 import de.ck35.metricstore.benchmark.Monitor;
 import de.ck35.metricstore.benchmark.ReadVerification;
 import de.ck35.metricstore.benchmark.Reporter;
-import de.ck35.metricstore.fs.BucketCommandProcessor;
 
 @Configuration
 @ComponentScan(basePackages={"de.ck35.metricstore.fs.configuration"})
@@ -38,7 +42,7 @@ public class BenchmarkConfiguration {
 	@Autowired MetricRepository repository;
 	@Autowired ObjectMapper mapper;
 	@Autowired Environment env;
-	@Autowired BucketCommandProcessor bucketCommandProcessor;
+	@Autowired MBeanServer mbeanServer;
 	
 	@Bean
 	public Benchmark benchmark() {
@@ -48,16 +52,18 @@ public class BenchmarkConfiguration {
 		                     env.getProperty("metricstore.benchmark.timeout", Integer.class, 60),
 		                     env.getProperty("metricstore.benchmark.timeout.unit", TimeUnit.class, TimeUnit.MINUTES));
 	}
-	
+
 	@Bean
-	public Monitor monitor() {
-	    return new Monitor(bucketCommandProcessor, 
+	public Monitor monitor() throws MalformedObjectNameException {
+	    return new Monitor(new MBeanAttributeSupplier<>(mbeanServer, ObjectName.getInstance("de.ck35.metricstore.fs:type=BucketCommandProcessor,name=bucketCommandProcessor"), "TotalProcessedCommands", Long.class),
+	                       new MBeanAttributeSupplier<>(mbeanServer, ObjectName.getInstance("java.lang:type=OperatingSystem"), "ProcessCpuLoad", Double.class),
+	                       new MBeanAttributeSupplier<>(mbeanServer, ObjectName.getInstance("java.lang:type=Memory"), "HeapMemoryUsagePercent", Double.class),
 	                       env.getProperty("metricstore.benchmark.monitor.pollTimeout", Integer.class, 10), 
 	                       env.getProperty("metricstore.benchmark.monitor.pollTimeout.unit", TimeUnit.class, TimeUnit.SECONDS));
 	}
 	
 	@Bean
-	public Reporter reporter() {
+	public Reporter reporter() throws MalformedObjectNameException {
 	    return new Reporter(monitor());
 	}
 	
