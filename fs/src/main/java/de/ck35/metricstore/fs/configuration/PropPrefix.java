@@ -10,7 +10,7 @@ import com.google.common.base.Function;
  */
 public class PropPrefix implements Function<String, String> {
 
-    public static final String DEFAULT_PREFIX = "metricrepository.fs.";
+    public static final String DEFAULT_PREFIX = "metricstore.fs.";
     
     private final String prefix;
     

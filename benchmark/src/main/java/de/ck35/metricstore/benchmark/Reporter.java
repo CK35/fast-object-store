@@ -1,10 +1,12 @@
 package de.ck35.metricstore.benchmark;
 
 
-public class Reporter extends Thread {
+public class Reporter implements Runnable {
 
-	public Reporter() {
-		super("Metric-Store-Benchmark-Reporter-Thread");
+	private final Monitor monitor;
+
+    public Reporter(Monitor monitor) {
+        this.monitor = monitor;
 	}
 	
 	@Override

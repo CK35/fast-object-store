@@ -55,12 +55,12 @@ public class ConfigurationTest {
         LOG.debug("Running test inside tmp work dir: '{}'.", workdir);
 
         BucketData.create(workdir, BUCKET_NAME, BUCKET_TYPE);
-        System.setProperty("metricrepository.fs.basepath", workdir.toString());
+        System.setProperty("metricstore.fs.basepath", workdir.toString());
     }
     
     @AfterClass
     public static void after() throws IOException {
-        Path workdir = Paths.get(System.getProperty("metricrepository.fs.basepath"));
+        Path workdir = Paths.get(System.getProperty("metricstore.fs.basepath"));
         WritableFilesystemBucket.clearDirectory(workdir);
         Files.delete(workdir);
     }

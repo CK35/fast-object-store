@@ -1,64 +1,92 @@
 package de.ck35.metricstore.benchmark;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.Iterator;
 import java.util.Map.Entry;
-import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
-import org.joda.time.DateTime;
-import org.joda.time.Interval;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.TreeNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.collect.Maps;
+import com.google.common.base.Supplier;
 
 import de.ck35.metricstore.api.MetricRepository;
 
-public class Benchmark extends Thread {
+public class Benchmark implements Runnable {
 
+    private static final Logger LOG = LoggerFactory.getLogger(Benchmark.class);
+    
 	private final MetricRepository repository;
-	private final ObjectMapper mapper;
-	
-	public Benchmark(MetricRepository repository, ObjectMapper mapper) {
-		super("Metric-Store-Benchmark-Thread");
-		this.repository = repository;
-		this.mapper = mapper;
-	}
+	private final Iterable<Entry<BucketInfo, ObjectNode>> dataIterable;
 
-	public static List<BucketInfo> createTestBuckets(int bucketCount) {
-		List<BucketInfo> result = new ArrayList<>(bucketCount);
-		for(int i=0 ; i<bucketCount ; i++) {
-			result.add(new BucketInfo("Test-Bucket-" + i, "Test-Bucket-Type-" + i));
-		}
-		return Collections.unmodifiableList(result);
-	}
-	
-	public static TreeNode createTestNode(DateTime timestamp, JsonNodeFactory nodeFactory, int fieldCount) {
-		ObjectNode objectNode = nodeFactory.objectNode();
-		objectNode.put("timestamp", timestamp.toString());
-		for(int i=0 ; i<fieldCount ; i++) {			
-			objectNode.put("field" + i, "value" + i);
-		}
-		return objectNode;
-	}
-	
-	public List<Entry<BucketInfo, TreeNode>> createTestData(List<BucketInfo> buckets, Interval dataInterval, int nodesPerMinute, int fieldsPerNode) {
-		Random bucketIndex = new Random();
-		List<Entry<BucketInfo, TreeNode>> result = new ArrayList<>();
-		for(DateTime current = dataInterval.getStart() ; current.isBefore(dataInterval.getEnd()) ; current = current.plusMinutes(1)) {
-			for(int i=0 ; i<nodesPerMinute ; i++) {
-				result.add(Maps.immutableEntry(buckets.get(bucketIndex.nextInt(buckets.size())), createTestNode(current, mapper.getNodeFactory(), fieldsPerNode)));
-			}
-		}
-		return result;
-	}
+    private final int threadCount;
+    private final int timeout;
+    private final TimeUnit unit;
+    
+	public Benchmark(MetricRepository repository, 
+	                 Iterable<Entry<BucketInfo, ObjectNode>> testDataIterator,
+	                 int threadCount,
+	                 int timeout,
+	                 TimeUnit unit) {
+        this.repository = repository;
+        this.dataIterable = testDataIterator;
+        this.threadCount = threadCount;
+        this.timeout = timeout;
+        this.unit = unit;
+    }
 
-	@Override
+    @Override
 	public void run() {
-		
+	    LOG.info("Starting benchmark.");
+	    DataSupplier dataSupplier = new DataSupplier(dataIterable.iterator());
+	    ExecutorService threadPool = Executors.newFixedThreadPool(threadCount);
+	    try {
+	        for(int thread = 0 ; thread < threadCount ; thread++) {
+	            threadPool.submit(new MetricRepositoryWriter(repository, dataSupplier));
+	        }
+	        threadPool.shutdown();
+	        threadPool.awaitTermination(timeout, unit);
+	    } catch (InterruptedException e) {
+	        throw new RuntimeException("Benchmark interrupted!");
+        } finally {
+	        threadPool.shutdownNow();
+	    }
+	    LOG.info("Benchmark done.");
 	}
-	
+    
+    public static class DataSupplier implements Supplier<Entry<BucketInfo, ObjectNode>> {
+        
+        private final Iterator<Entry<BucketInfo, ObjectNode>> iter;
+        
+        public DataSupplier(Iterator<Entry<BucketInfo, ObjectNode>> iter) {
+            this.iter = iter;
+        }
+        @Override
+        public synchronized Entry<BucketInfo, ObjectNode> get() {
+            if(iter.hasNext()) {
+                return iter.next();
+            } else {                
+                return null;
+            }
+        }
+    }
+
+    public static class MetricRepositoryWriter implements Runnable {
+        
+        private final MetricRepository repository;
+        private final Supplier<Entry<BucketInfo, ObjectNode>> dataSupplier;
+
+        public MetricRepositoryWriter(MetricRepository repository, Supplier<Entry<BucketInfo, ObjectNode>> dataSupplier) {
+            this.repository = repository;
+            this.dataSupplier = dataSupplier;
+        }
+        @Override
+        public void run() {
+            for(Entry<BucketInfo, ObjectNode> next = dataSupplier.get() ; next != null ; next = dataSupplier.get()) {
+                repository.wirte(next.getKey().getBucketName(), next.getKey().getBucketType(), next.getValue());
+            }
+        }
+    }
 }

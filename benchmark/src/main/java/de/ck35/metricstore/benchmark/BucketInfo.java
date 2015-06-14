@@ -9,11 +9,14 @@ public class BucketInfo {
 		this.bucketName = bucketName;
 		this.bucketType = bucketType;
 	}
-
 	public String getBucketName() {
 		return bucketName;
 	}
 	public String getBucketType() {
 		return bucketType;
 	}
+    @Override
+    public String toString() {
+        return "BucketInfo [bucketName=" + bucketName + ", bucketType=" + bucketType + "]";
+    }
 }

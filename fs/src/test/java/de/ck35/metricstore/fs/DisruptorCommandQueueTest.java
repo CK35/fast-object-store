@@ -27,7 +27,7 @@ public class DisruptorCommandQueueTest {
 
     @BeforeClass
     public static void beforeContext() {
-        System.setProperty("metricrepository.fs.commands.queue.mode", "DISRUPTOR");
+        System.setProperty("metricstore.fs.commands.queue.mode", "DISRUPTOR");
     }
     
     @Autowired ConfigurableApplicationContext context;
