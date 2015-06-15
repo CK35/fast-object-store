@@ -24,17 +24,24 @@ public class ReadVerification implements Runnable {
     private final MetricRepository repository;
     private final Supplier<List<Entry<BucketInfo, List<Entry<DateTime, ObjectNode>>>>> dataSupplier;
     private final Interval interval;
+    private final boolean skip;
     
     public ReadVerification(MetricRepository repository, 
                             Interval interval,
-                            Supplier<List<Entry<BucketInfo, List<Entry<DateTime, ObjectNode>>>>> dataSupplier) {
+                            Supplier<List<Entry<BucketInfo, List<Entry<DateTime, ObjectNode>>>>> dataSupplier,
+                            boolean skip) {
         this.repository = repository;
         this.interval = interval;
         this.dataSupplier = dataSupplier;
+        this.skip = skip;
     }
 
     @Override
     public void run() {
+        if(skip) {
+            LOG.info("Skipping read verification.");
+            return;
+        }
         LOG.info("Starting read verification.");
         List<Entry<BucketInfo, List<Entry<DateTime, ObjectNode>>>> data = dataSupplier.get();
         if(data.isEmpty()) {

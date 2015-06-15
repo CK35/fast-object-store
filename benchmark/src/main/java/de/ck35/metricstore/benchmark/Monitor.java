@@ -63,7 +63,7 @@ public class Monitor implements Runnable {
 	                if(enabled.get()) {	                	
 	                	Thread.sleep(TimeUnit.MILLISECONDS.convert(pollTimeout, unit));
 	                } else {
-	                	
+	                	return;
 	                }
 	            }
 	        } catch (InterruptedException e) {
@@ -85,7 +85,7 @@ public class Monitor implements Runnable {
         return resultReference.get();
     }
 
-    private SystemState systemState(DateTime now, Optional<Entry<DateTime, SystemState>> lastState) {
+    protected SystemState systemState(DateTime now, Optional<Entry<DateTime, SystemState>> lastState) {
     	Optional<Entry<Long, SystemState>> last = optionalDurationMillis(now, lastState);
     	Optional<Long> totalProcessedCommands = totalProcessedCommandsSupplier.get();
     	Optional<Double> processedCommandsPerSecond;

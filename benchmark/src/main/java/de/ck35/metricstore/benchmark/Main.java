@@ -13,9 +13,6 @@ import org.springframework.core.io.PathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
 
-import de.ck35.metricstore.benchmark.configuration.BenchmarkConfiguration;
-import de.ck35.metricstore.benchmark.configuration.JMXConfiguration;
-
 public class Main {
 
     public static void main(String[] args) throws Exception {
@@ -23,7 +20,7 @@ public class Main {
 		try(AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
 			Resource resource = new PathResource(Paths.get(System.getProperty("user.dir"), "benchmark.properties"));
 		    context.getEnvironment().getPropertySources().addFirst(new ResourcePropertySource(resource));
-		    context.register(JMXConfiguration.class, BenchmarkConfiguration.class);
+		    context.scan("de.ck35.metricstore.benchmark.configuration");
 		    context.refresh();
 
 		    ExecutorService executor = Executors.newFixedThreadPool(2);

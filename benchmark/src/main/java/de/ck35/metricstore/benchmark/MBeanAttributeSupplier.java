@@ -3,6 +3,7 @@ package de.ck35.metricstore.benchmark;
 import javax.management.JMException;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
+import javax.management.openmbean.CompositeData;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,5 +39,23 @@ public class MBeanAttributeSupplier<T> implements Supplier<Optional<T>> {
 			return Optional.absent();
 		}
 	}
+	
+	public static class HeapMemoryUsageSupplier implements Supplier<Optional<Double>> {
+	    
+	    private final Supplier<Optional<CompositeData>> compositeSupplier;
+	    
+        public HeapMemoryUsageSupplier(Supplier<Optional<CompositeData>> compositeSupplier) {
+            this.compositeSupplier = compositeSupplier;
+        }
 
+        @Override
+        public Optional<Double> get() {
+            Optional<CompositeData> heapMemoryUsage = compositeSupplier.get();
+            if(heapMemoryUsage.isPresent()) {
+                return Optional.of((((Long)heapMemoryUsage.get().get("used")).doubleValue() / ((Long)heapMemoryUsage.get().get("max")).doubleValue()) * 100.0);
+            } else {
+                return Optional.absent();
+            }
+        }
+	}
 }

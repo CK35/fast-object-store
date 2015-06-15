@@ -35,4 +35,9 @@ public class MinimumIntSetting extends Setting<Integer> {
             return result;
         }
     }
+    
+    @ManagedAttribute
+    public int getMinValue() {
+        return minValue;
+    }
 }

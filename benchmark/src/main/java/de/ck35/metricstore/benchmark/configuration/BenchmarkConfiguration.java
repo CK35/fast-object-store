@@ -1,19 +1,18 @@
 package de.ck35.metricstore.benchmark.configuration;
 
+import java.nio.charset.Charset;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-
-import javax.management.MBeanServer;
-import javax.management.MalformedObjectNameException;
-import javax.management.ObjectName;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.joda.time.LocalDate;
 import org.joda.time.Period;
+import org.joda.time.format.DateTimeFormat;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -22,6 +21,7 @@ import org.springframework.core.env.Environment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Charsets;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 
@@ -30,7 +30,6 @@ import de.ck35.metricstore.benchmark.Benchmark;
 import de.ck35.metricstore.benchmark.BucketInfo;
 import de.ck35.metricstore.benchmark.DataGenerator;
 import de.ck35.metricstore.benchmark.DataIterable;
-import de.ck35.metricstore.benchmark.MBeanAttributeSupplier;
 import de.ck35.metricstore.benchmark.Monitor;
 import de.ck35.metricstore.benchmark.ReadVerification;
 import de.ck35.metricstore.benchmark.Reporter;
@@ -42,7 +41,7 @@ public class BenchmarkConfiguration {
 	@Autowired MetricRepository repository;
 	@Autowired ObjectMapper mapper;
 	@Autowired Environment env;
-	@Autowired MBeanServer mbeanServer;
+	@Autowired Monitor monitor;
 	
 	@Bean
 	public Benchmark benchmark() {
@@ -54,17 +53,12 @@ public class BenchmarkConfiguration {
 	}
 
 	@Bean
-	public Monitor monitor() throws MalformedObjectNameException {
-	    return new Monitor(new MBeanAttributeSupplier<>(mbeanServer, ObjectName.getInstance("de.ck35.metricstore.fs:type=BucketCommandProcessor,name=bucketCommandProcessor"), "TotalProcessedCommands", Long.class),
-	                       new MBeanAttributeSupplier<>(mbeanServer, ObjectName.getInstance("java.lang:type=OperatingSystem"), "ProcessCpuLoad", Double.class),
-	                       new MBeanAttributeSupplier<>(mbeanServer, ObjectName.getInstance("java.lang:type=Memory"), "HeapMemoryUsagePercent", Double.class),
-	                       env.getProperty("metricstore.benchmark.monitor.pollTimeout", Integer.class, 10), 
-	                       env.getProperty("metricstore.benchmark.monitor.pollTimeout.unit", TimeUnit.class, TimeUnit.SECONDS));
-	}
-	
-	@Bean
-	public Reporter reporter() throws MalformedObjectNameException {
-	    return new Reporter(monitor());
+	public Reporter reporter() {
+	    return new Reporter(monitor,
+	                        Paths.get(env.getProperty("metricstore.benchmark.report.file", "benchmark-result.csv")),
+	                        env.getProperty("metricstore.benchmark.report.charset", Charset.class, Charsets.UTF_8),
+	                        env.getProperty("metricstore.benchmark.report.separator", ","),
+	                        DateTimeFormat.forPattern(env.getProperty("metricstore.benchmark.report.dateTimeFormat", "HH:mm:ss")));
 	}
 	
 	@Bean
@@ -97,6 +91,7 @@ public class BenchmarkConfiguration {
 	
 	@Bean
 	public ReadVerification readVerification() {
-	    return new ReadVerification(repository, dataInterval(), dataSupplier());
+	    return new ReadVerification(repository, dataInterval(), dataSupplier(),
+	                                env.getProperty("metricstore.benchmark.readverification.skip", Boolean.class, false));
 	}
 }
