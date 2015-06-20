@@ -94,7 +94,7 @@ public class Monitor implements Runnable {
     		if(commands < 0) {
     			processedCommandsPerSecond = Optional.absent();
     		} else {    			
-    			processedCommandsPerSecond = Optional.of((commands/(double)last.get().getKey())*60000.0);
+    			processedCommandsPerSecond = Optional.of((commands/(double)last.get().getKey())*1000.0);
     		}
     	} else {
     		processedCommandsPerSecond = Optional.absent();
@@ -107,7 +107,7 @@ public class Monitor implements Runnable {
     
     public static Optional<Entry<Long, SystemState>> optionalDurationMillis(DateTime now, Optional<Entry<DateTime, SystemState>> lastState) {
     	if(lastState.isPresent()) {
-    		return Optional.of(Maps.immutableEntry(new Interval(now, lastState.get().getKey()).toDurationMillis(), lastState.get().getValue()));
+    		return Optional.of(Maps.immutableEntry(new Interval(lastState.get().getKey(), now).toDurationMillis(), lastState.get().getValue()));
     	} else {
     		return Optional.absent();
     	}

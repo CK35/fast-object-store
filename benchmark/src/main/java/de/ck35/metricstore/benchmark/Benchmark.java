@@ -3,7 +3,6 @@ package de.ck35.metricstore.benchmark;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -21,17 +20,21 @@ public class Benchmark implements Runnable {
 	private final MetricRepository repository;
 	private final Iterable<Entry<BucketInfo, ObjectNode>> dataIterable;
 
+	private final Supplier<ExecutorService> executorServiceSupplier;
     private final int threadCount;
     private final int timeout;
     private final TimeUnit unit;
+
     
 	public Benchmark(MetricRepository repository, 
 	                 Iterable<Entry<BucketInfo, ObjectNode>> testDataIterator,
+	                 Supplier<ExecutorService> executorServiceSupplier,
 	                 int threadCount,
 	                 int timeout,
 	                 TimeUnit unit) {
         this.repository = repository;
         this.dataIterable = testDataIterator;
+        this.executorServiceSupplier = executorServiceSupplier;
         this.threadCount = threadCount;
         this.timeout = timeout;
         this.unit = unit;
@@ -41,7 +44,7 @@ public class Benchmark implements Runnable {
 	public void run() {
 	    LOG.info("Starting benchmark.");
 	    DataSupplier dataSupplier = new DataSupplier(dataIterable.iterator());
-	    ExecutorService threadPool = Executors.newFixedThreadPool(threadCount);
+	    ExecutorService threadPool = executorServiceSupplier.get();
 	    try {
 	        for(int thread = 0 ; thread < threadCount ; thread++) {
 	            threadPool.submit(new MetricRepositoryWriter(repository, dataSupplier));

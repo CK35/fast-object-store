@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Random;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.joda.time.DateTime;
@@ -21,7 +22,6 @@ import org.springframework.core.env.Environment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.base.Charsets;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 
@@ -33,6 +33,7 @@ import de.ck35.metricstore.benchmark.DataIterable;
 import de.ck35.metricstore.benchmark.Monitor;
 import de.ck35.metricstore.benchmark.ReadVerification;
 import de.ck35.metricstore.benchmark.Reporter;
+import de.ck35.metricstore.benchmark.Reporter.FileWriterSupplier;
 
 @Configuration
 @ComponentScan(basePackages={"de.ck35.metricstore.fs.configuration"})
@@ -45,20 +46,23 @@ public class BenchmarkConfiguration {
 	
 	@Bean
 	public Benchmark benchmark() {
+	    int threadCount = env.getProperty("metricstore.benchmark.threadcount", Integer.class, 10);
 		return new Benchmark(repository, 
 		                     dataIterable(),
-		                     env.getProperty("metricstore.benchmark.threadcount", Integer.class, 10),
+		                     Suppliers.ofInstance(Executors.newFixedThreadPool(threadCount)),
+		                     threadCount,
 		                     env.getProperty("metricstore.benchmark.timeout", Integer.class, 60),
 		                     env.getProperty("metricstore.benchmark.timeout.unit", TimeUnit.class, TimeUnit.MINUTES));
 	}
 
 	@Bean
 	public Reporter reporter() {
+	    FileWriterSupplier supplier = new FileWriterSupplier(Paths.get(env.getProperty("metricstore.benchmark.report.file", "benchmark-result.csv")), 
+	                                                         Charset.forName(env.getProperty("metricstore.benchmark.report.charset", String.class, "UTF-8")));
 	    return new Reporter(monitor,
-	                        Paths.get(env.getProperty("metricstore.benchmark.report.file", "benchmark-result.csv")),
-	                        env.getProperty("metricstore.benchmark.report.charset", Charset.class, Charsets.UTF_8),
 	                        env.getProperty("metricstore.benchmark.report.separator", ","),
-	                        DateTimeFormat.forPattern(env.getProperty("metricstore.benchmark.report.dateTimeFormat", "HH:mm:ss")));
+	                        DateTimeFormat.forPattern(env.getProperty("metricstore.benchmark.report.dateTimeFormat", "HH:mm:ss")),
+	                        supplier);
 	}
 	
 	@Bean
@@ -78,7 +82,7 @@ public class BenchmarkConfiguration {
         return new Interval(end.minus(testPeriod), end);
 	}
 	
-	@Bean(initMethod="get")
+	@Bean
 	public Supplier<List<Entry<BucketInfo, List<Entry<DateTime, ObjectNode>>>>> dataSupplier() {
 	    return Suppliers.memoize(new DataGenerator(mapper.getNodeFactory(),
                                                    env.getProperty("metricstore.benchmark.data.buckets", Integer.class, 4),

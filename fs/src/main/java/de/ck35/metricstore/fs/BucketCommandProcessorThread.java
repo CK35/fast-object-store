@@ -68,9 +68,8 @@ public class BucketCommandProcessorThread extends Thread implements UncaughtExce
     @Override
     public void close() throws IOException {
         LOG.info("Closing {}.", NAME);
-        uncaughtExceptionRef.set(new InterruptedException());
+        uncaughtExceptionRef.set(new RuntimeException("Already closed!"));
         initLatch.countDown();
-        interrupt();
     }
     
     @ManagedAttribute

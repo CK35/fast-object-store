@@ -58,6 +58,7 @@ public class WritableFilesystemBucket extends ReadableFilesystemBucket implement
 	public void close() throws IOException {
 		for(ObjectNodeWriter writer : writers) {
 			try {				
+			    Thread.interrupted();
 				writer.close();
 			} catch (IOException e) {
 				LOG.warn("Error while closing writer for path: '{}'.", writer.getPath(), e);

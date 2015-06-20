@@ -53,21 +53,10 @@ public class BucketCommandQueueConfiguration {
     @Bean
     public Predicate<BucketCommand<?>> bucketCommandQueue() throws Throwable {
         if(QueueMode.DISRUPTOR == getQueueMode()) {
-            ExecutorService executor = Executors.newFixedThreadPool(1, new ThreadFactory() {
-                private AtomicBoolean created = new AtomicBoolean();
-                @Override
-                public Thread newThread(Runnable runnable) {
-                    if(created.compareAndSet(false, true)) {
-                        bucketCommandProcessorThread.setTargetRunnableRef(runnable);
-                        return bucketCommandProcessorThread;
-                    } else {
-                        return null;
-                    }
-                }
-            });
+            
             DisruptorCommandQueue commandQueue = DisruptorCommandQueue.build(getQueueSize(), 
                                                                              getDisruptorWaitStrategy(), 
-                                                                             executor, 
+                                                                             executorService(), 
                                                                              bucketCommandProcessor, 
                                                                              env, 
                                                                              PropPrefix.defaultPrefix().withPrefix("disruptor.waitStrategy."));
@@ -82,6 +71,22 @@ public class BucketCommandQueueConfiguration {
             return commandQueue;
                     
         }
+    }
+    
+    @Bean(destroyMethod="shutdown")
+    public ExecutorService executorService() {
+        return Executors.newFixedThreadPool(1, new ThreadFactory() {
+            private AtomicBoolean created = new AtomicBoolean();
+            @Override
+            public Thread newThread(Runnable runnable) {
+                if(created.compareAndSet(false, true)) {
+                    bucketCommandProcessorThread.setTargetRunnableRef(runnable);
+                    return bucketCommandProcessorThread;
+                } else {
+                    return null;
+                }
+            }
+        });
     }
     
     public QueueMode getQueueMode() {

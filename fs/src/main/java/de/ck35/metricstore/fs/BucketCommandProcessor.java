@@ -81,6 +81,7 @@ public class BucketCommandProcessor {
 					context.getBuckets().put(data.getName(), pathBucketFactory.apply(data));
 				}
 			};
+			BucketCommandProcessorThread.initialized();
 		} catch (IOException e) {
 			throw new MetricsIOException("Initializing context failed!", e); 
 		}
