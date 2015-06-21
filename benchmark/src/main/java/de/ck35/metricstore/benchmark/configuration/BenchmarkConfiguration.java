@@ -2,7 +2,6 @@ package de.ck35.metricstore.benchmark.configuration;
 
 import java.nio.charset.Charset;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.Executors;
@@ -22,7 +21,6 @@ import org.springframework.core.env.Environment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 
 import de.ck35.metricstore.api.MetricRepository;
@@ -60,7 +58,7 @@ public class BenchmarkConfiguration {
 	    FileWriterSupplier supplier = new FileWriterSupplier(Paths.get(env.getProperty("metricstore.benchmark.report.file", "benchmark-result.csv")), 
 	                                                         Charset.forName(env.getProperty("metricstore.benchmark.report.charset", String.class, "UTF-8")));
 	    return new Reporter(monitor,
-	                        env.getProperty("metricstore.benchmark.report.separator", ","),
+	                        env.getProperty("metricstore.benchmark.report.separator", ";"),
 	                        DateTimeFormat.forPattern(env.getProperty("metricstore.benchmark.report.dateTimeFormat", "HH:mm:ss")),
 	                        supplier);
 	}
@@ -72,7 +70,7 @@ public class BenchmarkConfiguration {
 	
 	@Bean
 	public Iterable<Entry<BucketInfo, ObjectNode>> dataIterable() {
-	    return new DataIterable(random(), dataSupplier());
+	    return new DataIterable(random(), dataGenerator());
 	}
 	
 	@Bean
@@ -83,19 +81,19 @@ public class BenchmarkConfiguration {
 	}
 	
 	@Bean
-	public Supplier<List<Entry<BucketInfo, List<Entry<DateTime, ObjectNode>>>>> dataSupplier() {
-	    return Suppliers.memoize(new DataGenerator(mapper.getNodeFactory(),
-                                                   env.getProperty("metricstore.benchmark.data.buckets", Integer.class, 4),
-                                                   dataInterval(),
-                                                   env.getProperty("metricstore.benchmark.data.nodesPerMinute", Integer.class, 10_000),
-                                                   env.getProperty("metricstore.benchmark.data.fieldsPerNode", Integer.class, 5),
-                                                   env.getProperty("metricstore.benchmark.data.fieldValueLength", Integer.class, 20),
-                                                   env.getProperty("metricstore.benchmark.data.numberOfRandomFieldValues", Integer.class, 10_000)));
+	public DataGenerator dataGenerator() {
+	    return new DataGenerator(mapper.getNodeFactory(),
+	                             env.getProperty("metricstore.benchmark.data.buckets", Integer.class, 4),
+	                             dataInterval(),
+	                             env.getProperty("metricstore.benchmark.data.nodesPerMinute", Integer.class, 10_000),
+	                             env.getProperty("metricstore.benchmark.data.fieldsPerNode", Integer.class, 5),
+	                             env.getProperty("metricstore.benchmark.data.fieldValueLength", Integer.class, 20),
+	                             env.getProperty("metricstore.benchmark.data.numberOfRandomFieldValues", Integer.class, 10_000));
 	}
 	
 	@Bean
 	public ReadVerification readVerification() {
-	    return new ReadVerification(repository, dataInterval(), dataSupplier(),
+	    return new ReadVerification(repository, dataInterval(), dataGenerator(),
 	                                env.getProperty("metricstore.benchmark.readverification.skip", Boolean.class, false));
 	}
 }

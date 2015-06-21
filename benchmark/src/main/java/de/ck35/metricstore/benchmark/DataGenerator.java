@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Maps;
 
 public class DataGenerator implements Supplier<List<Entry<BucketInfo, List<Entry<DateTime, ObjectNode>>>>> {
@@ -28,6 +29,8 @@ public class DataGenerator implements Supplier<List<Entry<BucketInfo, List<Entry
     private final int fieldsPerNode;
     private final int fieldValueLength;
     private final int numberOfRandomFieldValues;
+    
+    private final Supplier<List<Entry<BucketInfo, List<Entry<DateTime, ObjectNode>>>>> memorizedSupplier;
     
     public DataGenerator(JsonNodeFactory nodeFactory,
                          int bucketCount,
@@ -43,11 +46,16 @@ public class DataGenerator implements Supplier<List<Entry<BucketInfo, List<Entry
         this.fieldsPerNode = fieldsPerNode;
         this.fieldValueLength = fieldValueLength;
         this.numberOfRandomFieldValues = numberOfRandomFieldValues;
+        this.memorizedSupplier = Suppliers.memoize(new Supplier<List<Entry<BucketInfo, List<Entry<DateTime, ObjectNode>>>>>() {
+			@Override
+			public List<Entry<BucketInfo, List<Entry<DateTime, ObjectNode>>>> get() {
+				return load();
+			}
+		});
     }
-
-    @Override
-    public List<Entry<BucketInfo, List<Entry<DateTime, ObjectNode>>>> get() {
-        int minutes = (int) dataInterval.toDuration().getStandardMinutes();
+    
+    protected List<Entry<BucketInfo, List<Entry<DateTime, ObjectNode>>>> load() {
+    	int minutes = (int) dataInterval.toDuration().getStandardMinutes();
         int valuesPerBucket = minutes * nodesPerMinute;
         int totalValues = valuesPerBucket * bucketCount;
         
@@ -72,6 +80,11 @@ public class DataGenerator implements Supplier<List<Entry<BucketInfo, List<Entry
             result.add(Maps.immutableEntry(bucketInfo, nodes));
         }
         return result;
+    }
+    
+    @Override
+    public List<Entry<BucketInfo, List<Entry<DateTime, ObjectNode>>>> get() {
+        return memorizedSupplier.get();
     }
     
     public ObjectNode objectNode(DateTime timestamp, Iterable<String> fieldNames, List<String> randomFieldValues, Random random) {

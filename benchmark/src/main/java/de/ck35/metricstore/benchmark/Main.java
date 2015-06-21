@@ -3,21 +3,15 @@ package de.ck35.metricstore.benchmark;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.Map.Entry;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.core.io.PathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
-
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.base.Supplier;
 
 public class Main {
 
@@ -31,8 +25,8 @@ public class Main {
 
 		    ExecutorService executor = Executors.newFixedThreadPool(2);
 		    try {
-		        Supplier<List<Entry<BucketInfo, List<Entry<DateTime, ObjectNode>>>>> dataSupplier = (Supplier<List<Entry<BucketInfo, List<Entry<DateTime, ObjectNode>>>>>) context.getBean("dataSupplier");
-		        dataSupplier.get();
+		        DataGenerator dataGenerator = context.getBean(DataGenerator.class);
+		        dataGenerator.get();
 		        
 		        Monitor monitor = context.getBean(Monitor.class);
 		        executor.submit(monitor);

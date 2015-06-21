@@ -7,6 +7,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.text.NumberFormat;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.concurrent.Callable;
@@ -111,7 +112,7 @@ public class Reporter implements Callable<Void> {
         
         public static void writeOptional(Optional<?> optional, Writer writer) throws IOException {
             if(optional.isPresent()) {
-                writer.write(optional.get().toString());
+                writer.write(NumberFormat.getInstance().format(optional.get()));
             } else {
                 writer.write("-");
             }
