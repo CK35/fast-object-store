@@ -330,9 +330,9 @@ public class FilesystemBucketTest {
 	
 	@Test
 	public void testDelete() throws IOException {
-		DateTime timestampA = new DateTime(2015, 1, 1, 0, 0, DateTimeZone.UTC);
-		DateTime timestampB = new DateTime(2015, 1, 2, 0, 0, DateTimeZone.UTC);
-		DateTime timestampC = new DateTime(2015, 1, 3, 0, 0, DateTimeZone.UTC);
+		DateTime timestampA = new DateTime(2014, 12, 31, 0, 0, DateTimeZone.UTC);
+		DateTime timestampB = new DateTime(2015, 1, 31, 0, 0, DateTimeZone.UTC);
+		DateTime timestampC = new DateTime(2015, 2, 1, 0, 0, DateTimeZone.UTC);
 		
 		Path dayFileA;
 		Path dayFolderB;
@@ -350,13 +350,25 @@ public class FilesystemBucketTest {
 			bucket.write(node(timestampC.toLocalDate().toString(), "fieldB", "valueB"));
 			
 			assertTrue(Files.isRegularFile(dayFileA));
+			assertEquals("12", dayFileA.getParent().getFileName().toString());
+			assertEquals("2014", dayFileA.getParent().getParent().getFileName().toString());
+			
 			assertTrue(Files.isDirectory(dayFolderB));
+			assertEquals("1", dayFolderB.getParent().getFileName().toString());
+            assertEquals("2015", dayFolderB.getParent().getParent().getFileName().toString());
+            
 			assertTrue(Files.isDirectory(dayFolderC));
 			
 			bucket.deletAll(timestampC.toLocalDate());
 			
 			assertFalse(Files.isRegularFile(dayFileA));
+			assertFalse(Files.isDirectory(dayFileA.getParent()));
+			assertFalse(Files.isDirectory(dayFileA.getParent().getParent()));
+			
 			assertFalse(Files.isDirectory(dayFolderB));
+			assertFalse(Files.isDirectory(dayFolderB.getParent()));
+            assertTrue(Files.isDirectory(dayFolderB.getParent().getParent()));
+            
 			assertTrue(Files.isDirectory(dayFolderC));
 		}
 	}

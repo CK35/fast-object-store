@@ -6,6 +6,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.DirectoryStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -196,6 +197,21 @@ public class WritableFilesystemBucket extends ReadableFilesystemBucket implement
 			} catch (IOException e) {
 				throw new MetricsIOException("Could not delete day folder: '" + dayDirectoryPath + "'!", e);
 			}
+		}
+		try {
+    		Path parent = dayFilePath.getParent();
+    		while(parent != null && !parent.equals(pathFinder.getBasePath())) {
+    		    boolean empty;
+    		    try(DirectoryStream<Path> stream = Files.newDirectoryStream(parent)) {
+    		        empty = !stream.iterator().hasNext();
+    		    }
+    		    if(empty) {
+    		        Files.delete(parent);
+    		    }
+    		    parent = parent.getParent();
+    		}
+		} catch(IOException e) {
+             throw new MetricsIOException("Could not cleanup parent folders!", e);
 		}
 	}
 	
