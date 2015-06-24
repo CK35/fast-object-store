@@ -2,6 +2,7 @@ package de.ck35.metricstore.util;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
@@ -41,6 +42,23 @@ public class TimestampFunction implements Function<ObjectNode, DateTime> {
 			throw new IllegalArgumentException("Empty String for timestamp in invalid!");
 		}
 		return formatter.parseDateTime(dateTimeText).withZone(DateTimeZone.UTC).withSecondOfMinute(0).withMillisOfSecond(0);
+	}
+	
+	/**
+	 * Create a timestamp function with an optional datetime format and path function.
+	 * 
+	 * @param dateTimeFormat The format of date time fields.
+	 * @param pathFunction The path function for the date time field.
+	 * @return A timestamp function.
+	 */
+	public static TimestampFunction build(String dateTimeFormat, Function<ObjectNode, JsonNode> pathFunction) {
+        final DateTimeFormatter formatter;
+        if(dateTimeFormat == null) {
+            formatter = TimestampFunction.DEFAULT_FORMATTER;
+        } else {            
+            formatter = DateTimeFormat.forPattern(dateTimeFormat).withZoneUTC();
+        }
+        return new TimestampFunction(formatter, pathFunction);
 	}
 	
 }

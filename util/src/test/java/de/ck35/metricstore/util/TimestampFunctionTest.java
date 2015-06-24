@@ -64,9 +64,26 @@ public class TimestampFunctionTest {
 		TimestampFunction function = new TimestampFunction();
 		assertEquals(expected, function.apply(map(ImmutableMap.<String, Object>of(DEFAULT_TIMESTAMP_FILED_NAME, timestamp))));
 	}
+	
+	@Test
+	public void testBuild() {
+	    ObjectNode node = map(ImmutableMap.<String, Object>of(DEFAULT_TIMESTAMP_FILED_NAME, "16:10"));
+        TimestampFunction function = TimestampFunction.build("HH:mm", JsonNodeExtractor.forPath(DEFAULT_TIMESTAMP_FILED_NAME));
+        DateTime time = function.apply(node);
+        assertEquals(new DateTime(1970, 1, 1, 16, 10, DateTimeZone.UTC), time);
+    }
+	
+	@Test
+    public void testBuildWithDefaultTimestampFunction() {
+        ObjectNode node = map(ImmutableMap.<String, Object>of(DEFAULT_TIMESTAMP_FILED_NAME, "1970-1-1T16:10"));
+        TimestampFunction function = TimestampFunction.build(null, JsonNodeExtractor.forPath(DEFAULT_TIMESTAMP_FILED_NAME));
+        DateTime time = function.apply(node);
+        assertEquals(new DateTime(1970, 1, 1, 16, 10, DateTimeZone.UTC), time);
+    }
 
 	public static ObjectNode map(Map<String, Object> map) {
 		ObjectMapper mapper = new ObjectMapper();
 		return mapper.convertValue(map, ObjectNode.class);
 	}
+	
 }

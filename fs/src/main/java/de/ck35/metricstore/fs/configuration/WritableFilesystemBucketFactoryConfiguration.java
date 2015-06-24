@@ -3,8 +3,6 @@ package de.ck35.metricstore.fs.configuration;
 import java.nio.file.Path;
 
 import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,15 +40,9 @@ public class WritableFilesystemBucketFactoryConfiguration {
     
     @Bean
     public Function<ObjectNode, DateTime> timestampFunction() {
-        String pattern = env.getProperty(PropPrefix.join("timestamp.pattern"));
-        String timestampFieldName = env.getProperty(PropPrefix.join("timestamp.fieldname"), TimestampFunction.DEFAULT_TIMESTAMP_FILED_NAME);
-        final DateTimeFormatter formatter;
-        if(pattern == null) {
-            formatter = TimestampFunction.DEFAULT_FORMATTER;
-        } else {            
-            formatter = DateTimeFormat.forPattern(pattern);
-        }
-        return new TimestampFunction(formatter, JsonNodeExtractor.forPath(timestampFieldName));
+        String timestampFieldName = env.getProperty("metricstore.timestamp.fieldname", TimestampFunction.DEFAULT_TIMESTAMP_FILED_NAME);
+        String format = env.getProperty("metricstore.timestamp.format");
+        return TimestampFunction.build(format, JsonNodeExtractor.forPath(timestampFieldName));
     }
     
     @Bean
