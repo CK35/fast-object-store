@@ -1,4 +1,4 @@
-package de.ck35.metricstore.fs;
+package de.ck35.metricstore.util.io;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;

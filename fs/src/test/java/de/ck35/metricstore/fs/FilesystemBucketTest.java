@@ -36,14 +36,17 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 
 import de.ck35.metricstore.api.StoredMetric;
-import de.ck35.metricstore.fs.configuration.ObjectMapperConfiguration;
 import de.ck35.metricstore.util.LRUCache;
 import de.ck35.metricstore.util.TimestampFunction;
+import de.ck35.metricstore.util.configuration.ObjectMapperConfiguration;
+import de.ck35.metricstore.util.io.ObjectNodeReader;
+import de.ck35.metricstore.util.io.ObjectNodeWriter;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes={ObjectMapperConfiguration.class})
@@ -67,7 +70,7 @@ public class FilesystemBucketTest {
 	public void before() throws IOException {
 		this.timestampFunction = new TimestampFunction();
 		this.writerFactory = new ObjectNodeWriter.Factory(mapper.getFactory());
-		this.readerFactory = new ObjectNodeReader.Factory(mapper);
+		this.readerFactory = new ObjectNodeReader.Factory(mapper, Charsets.UTF_8);
 		this.writers = new LRUCache<>(5);
 		
 		Path workdir = Files.createTempDirectory("FilesystemBucketTest");

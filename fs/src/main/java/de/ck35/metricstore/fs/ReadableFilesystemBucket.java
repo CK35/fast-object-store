@@ -15,7 +15,8 @@ import com.google.common.base.Predicate;
 
 import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
-import de.ck35.metricstore.util.MetricsIOException;
+import de.ck35.metricstore.util.io.MetricsIOException;
+import de.ck35.metricstore.util.io.ObjectNodeReader;
 
 /**
  * A read-only implementation of a {@link MetricBucket}. 

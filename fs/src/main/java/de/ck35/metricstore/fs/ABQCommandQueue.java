@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Predicate;
 
 import de.ck35.metricstore.fs.BucketCommandProcessor.Context;
-import de.ck35.metricstore.util.MetricsIOException;
+import de.ck35.metricstore.util.io.MetricsIOException;
 
 public class ABQCommandQueue implements Runnable, Predicate<BucketCommand<?>>, Closeable {
 

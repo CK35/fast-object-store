@@ -1,4 +1,4 @@
-package de.ck35.metricstore.util;
+package de.ck35.metricstore.util.io;
 
 public class MetricsIOException extends RuntimeException {
 

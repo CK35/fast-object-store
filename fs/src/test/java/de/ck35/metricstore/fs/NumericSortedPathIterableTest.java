@@ -15,7 +15,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
 import de.ck35.metricstore.fs.NumericSortedPathIterable.DefaultNumberFunction;
-import de.ck35.metricstore.util.MetricsIOException;
+import de.ck35.metricstore.util.io.MetricsIOException;
 
 public class NumericSortedPathIterableTest {
 

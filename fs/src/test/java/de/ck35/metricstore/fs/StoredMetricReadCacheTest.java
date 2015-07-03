@@ -15,7 +15,7 @@ import org.mockito.stubbing.Answer;
 import com.google.common.base.Suppliers;
 
 import de.ck35.metricstore.api.StoredMetric;
-import de.ck35.metricstore.util.MetricsIOException;
+import de.ck35.metricstore.util.io.MetricsIOException;
 
 public class StoredMetricReadCacheTest {
 

@@ -17,7 +17,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import de.ck35.metricstore.util.MetricsIOException;
+import de.ck35.metricstore.util.io.MetricsIOException;
 
 /**
  * Allows iteration of path child elements (directories and files) in a numeric sorted manner.

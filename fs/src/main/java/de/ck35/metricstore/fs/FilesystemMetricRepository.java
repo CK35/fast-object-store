@@ -17,7 +17,7 @@ import de.ck35.metricstore.fs.BucketCommand.ListBucketsCommand;
 import de.ck35.metricstore.fs.BucketCommand.ReadCommand;
 import de.ck35.metricstore.fs.BucketCommand.WriteCommand;
 import de.ck35.metricstore.util.DayBasedIntervalSplitter;
-import de.ck35.metricstore.util.MetricsIOException;
+import de.ck35.metricstore.util.io.MetricsIOException;
 
 /**
  * The filesystem based implementation of the {@link MetricRepository}. 

@@ -9,6 +9,8 @@ import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 
 import de.ck35.metricstore.util.LRUCache;
+import de.ck35.metricstore.util.io.ObjectNodeReader;
+import de.ck35.metricstore.util.io.ObjectNodeWriter;
 
 /**
  * Factory for {@link WritableFilesystemBucket}. 

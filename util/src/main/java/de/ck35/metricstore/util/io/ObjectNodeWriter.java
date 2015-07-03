@@ -1,4 +1,4 @@
-package de.ck35.metricstore.fs;
+package de.ck35.metricstore.util.io;
 
 import java.io.BufferedOutputStream;
 import java.io.Closeable;
@@ -17,7 +17,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 
-import de.ck35.metricstore.util.MetricsIOException;
+import de.ck35.metricstore.util.io.MetricsIOException;
 
 /**
  * Writer for JSON ObjectNodes. The nodes are written gziped into a path of the filesystem.

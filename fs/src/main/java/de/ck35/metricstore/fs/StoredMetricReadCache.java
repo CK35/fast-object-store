@@ -14,7 +14,7 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.AbstractIterator;
 
 import de.ck35.metricstore.api.StoredMetric;
-import de.ck35.metricstore.util.MetricsIOException;
+import de.ck35.metricstore.util.io.MetricsIOException;
 
 public class StoredMetricReadCache extends AbstractIterator<StoredMetric> implements Predicate<StoredMetric>, Observer, Closeable {
 

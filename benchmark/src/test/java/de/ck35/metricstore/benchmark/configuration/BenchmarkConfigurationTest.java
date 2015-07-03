@@ -21,7 +21,8 @@ import de.ck35.metricstore.benchmark.Reporter;
 
 @Configuration
 @RunWith(SpringJUnit4ClassRunner.class)
-@ComponentScan("de.ck35.metricstore.benchmark.configuration")
+@ComponentScan(basePackages={"de.ck35.metricstore.benchmark.configuration",
+                             "de.ck35.metricstore.util.configuration"})
 @ContextConfiguration(classes=BenchmarkConfigurationTest.class)
 public class BenchmarkConfigurationTest {
 

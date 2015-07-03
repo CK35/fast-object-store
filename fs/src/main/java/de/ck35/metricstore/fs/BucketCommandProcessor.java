@@ -25,7 +25,7 @@ import de.ck35.metricstore.fs.BucketCommand.DeleteCommand;
 import de.ck35.metricstore.fs.BucketCommand.ListBucketsCommand;
 import de.ck35.metricstore.fs.BucketCommand.ReadCommand;
 import de.ck35.metricstore.fs.BucketCommand.WriteCommand;
-import de.ck35.metricstore.util.MetricsIOException;
+import de.ck35.metricstore.util.io.MetricsIOException;
 
 /**
  * Responsible for processing commands. This class holds a collection of {@link WritableFilesystemBucket}

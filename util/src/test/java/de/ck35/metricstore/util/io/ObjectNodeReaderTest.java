@@ -1,4 +1,4 @@
-package de.ck35.metricstore.fs;
+package de.ck35.metricstore.util.io;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -23,8 +23,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import de.ck35.metricstore.fs.ObjectNodeReader;
-import de.ck35.metricstore.fs.configuration.ObjectMapperConfiguration;
+import de.ck35.metricstore.util.configuration.ObjectMapperConfiguration;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes={ObjectMapperConfiguration.class})

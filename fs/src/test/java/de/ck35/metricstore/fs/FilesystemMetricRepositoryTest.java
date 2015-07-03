@@ -34,8 +34,8 @@ import de.ck35.metricstore.api.StoredMetricCallable;
 import de.ck35.metricstore.fs.BucketCommand.ListBucketsCommand;
 import de.ck35.metricstore.fs.BucketCommand.ReadCommand;
 import de.ck35.metricstore.fs.BucketCommand.WriteCommand;
-import de.ck35.metricstore.util.MetricsIOException;
 import de.ck35.metricstore.util.MinimumIntSetting;
+import de.ck35.metricstore.util.io.MetricsIOException;
 
 @RunWith(MockitoJUnitRunner.class)
 public class FilesystemMetricRepositoryTest {

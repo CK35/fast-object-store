@@ -13,6 +13,7 @@ import com.google.common.base.Function;
 
 import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
+import de.ck35.metricstore.util.io.ObjectNodeReader;
 
 public class StoredObjectNodeReader implements Closeable {
 

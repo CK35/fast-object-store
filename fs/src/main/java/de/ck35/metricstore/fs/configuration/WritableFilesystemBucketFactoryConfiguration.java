@@ -10,14 +10,15 @@ import org.springframework.core.env.Environment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 
-import de.ck35.metricstore.fs.ObjectNodeReader;
-import de.ck35.metricstore.fs.ObjectNodeWriter;
 import de.ck35.metricstore.fs.WritableFilesystemBucketFactory;
 import de.ck35.metricstore.util.JsonNodeExtractor;
 import de.ck35.metricstore.util.MinimumIntSetting;
 import de.ck35.metricstore.util.TimestampFunction;
+import de.ck35.metricstore.util.io.ObjectNodeReader;
+import de.ck35.metricstore.util.io.ObjectNodeWriter;
 
 /**
  * Configuration for the {@link WritableFilesystemBucketFactory}.
@@ -55,7 +56,7 @@ public class WritableFilesystemBucketFactoryConfiguration {
 
     @Bean
     public Function<Path, ObjectNodeReader> readerFactory() {
-        return new ObjectNodeReader.Factory(mapper);
+        return new ObjectNodeReader.Factory(mapper, Charsets.UTF_8);
     }
 
     @Bean

@@ -1,9 +1,10 @@
-package de.ck35.metricstore.fs;
+package de.ck35.metricstore.util.io;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -20,8 +21,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
-
-import de.ck35.metricstore.util.MetricsIOException;
 
 /**
  * Reader for JSON ObjectNodes. The nodes are read from a path which contains gzip content.
@@ -61,6 +60,24 @@ public class ObjectNodeReader implements Closeable {
 			throw new MetricsIOException("Creating object node reader for path: '" + path + "' failed!", e);
 		}
 	}
+	public ObjectNodeReader(InputStream stream, ObjectMapper mapper, Charset charset) throws MetricsIOException {
+        this.path = null;
+        this.mapper = mapper;
+        boolean closeOnError = true;
+        try {
+            BufferedInputStream inputStream = new BufferedInputStream(stream);
+            try {
+                this.reader = new BufferedReader(new InputStreamReader(new GZIPInputStream(inputStream), charset));
+                closeOnError = false;
+            } finally {
+                if(closeOnError) {
+                    inputStream.close();
+                }
+            } 
+        } catch(IOException e) {
+            throw new MetricsIOException("Creating object node reader for path: '" + path + "' failed!", e);
+        }
+    }
 	
 	public ObjectNode read() throws MetricsIOException {
 		try {			
@@ -103,13 +120,29 @@ public class ObjectNodeReader implements Closeable {
 	public static class Factory implements Function<Path, ObjectNodeReader> {
 
 		private final ObjectMapper mapper;
+		private final Charset charset;
 		
-		public Factory(ObjectMapper mapper) {
+		public Factory(ObjectMapper mapper, Charset charset) {
 			this.mapper = mapper;
+            this.charset = charset;
 		}
 		@Override
 		public ObjectNodeReader apply(Path input) {
-			return new ObjectNodeReader(input, mapper);
+			return new ObjectNodeReader(input, mapper, charset, StandardOpenOption.READ);
 		}
 	}
+	public static class StreamFactory implements Function<InputStream, ObjectNodeReader> {
+
+        private final ObjectMapper mapper;
+        private final Charset charset;
+        
+        public StreamFactory(ObjectMapper mapper, Charset charset) {
+            this.mapper = mapper;
+            this.charset = charset;
+        }
+        @Override
+        public ObjectNodeReader apply(InputStream input) {
+            return new ObjectNodeReader(input, mapper, charset);
+        }
+    }
 }

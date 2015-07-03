@@ -1,6 +1,8 @@
 package de.ck35.metricstore.fs;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -23,6 +25,7 @@ import com.google.common.collect.ImmutableList;
 import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
 import de.ck35.metricstore.util.TimestampFunction;
+import de.ck35.metricstore.util.io.ObjectNodeReader;
 
 public class StoredObjectNodeReaderTest {
 	

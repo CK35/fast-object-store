@@ -28,7 +28,9 @@ import com.google.common.base.Function;
 import de.ck35.metricstore.api.MetricBucket;
 import de.ck35.metricstore.api.StoredMetric;
 import de.ck35.metricstore.util.LRUCache;
-import de.ck35.metricstore.util.MetricsIOException;
+import de.ck35.metricstore.util.io.MetricsIOException;
+import de.ck35.metricstore.util.io.ObjectNodeReader;
+import de.ck35.metricstore.util.io.ObjectNodeWriter;
 
 /**
  * {@link MetricBucket} implementation which allows writing, deleting and compressing. 
