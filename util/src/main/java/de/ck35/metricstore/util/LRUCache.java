@@ -17,9 +17,11 @@ import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 
 /**
+ * A cache which holds up to n elements. The element which has not been used for the longest time
+ * will be dropped when another element (n+1) is added.
  * 
- * @param <K>
- * @param <V>
+ * @param <K> The cache key.
+ * @param <V> The cached value.
  *
  * @author Christian Kaspari
  * @since 1.0.0

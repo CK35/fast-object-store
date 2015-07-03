@@ -3,7 +3,7 @@ package de.ck35.metricstore.fs.configuration;
 import com.google.common.base.Function;
 
 /**
- * Helper which generates property keys which always start with the prefix: {@link #PREFIX}.
+ * Helper which generates property keys which always start with the prefix: {@link #DEFAULT_PREFIX}.
  *
  * @author Christian Kaspari
  * @since 1.0.0

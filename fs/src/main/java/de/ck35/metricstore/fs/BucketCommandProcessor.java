@@ -28,9 +28,7 @@ import de.ck35.metricstore.fs.BucketCommand.WriteCommand;
 import de.ck35.metricstore.util.io.MetricsIOException;
 
 /**
- * Responsible for processing commands. This class holds a collection of {@link WritableFilesystemBucket}
- * inside the {@link #run()} Method. All commands are applied to these buckets in sequence. Thus the
- * single Buckets don not need to be Threadsafe.
+ * Responsible for processing commands.
  * 
  * @author Christian Kaspari
  * @since 1.0.0

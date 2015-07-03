@@ -13,7 +13,7 @@ import org.springframework.jmx.export.annotation.ManagedResource;
 
 /**
  * Worker Thread for the {@link BucketCommandProcessor}. This class will be used for the {@link BucketCommandProcessor}
- * to process the {@link BucketCommandProcessor#run()} Method. The {@link #awaitInitialization()} Method
+ * to process the commands. The {@link #awaitInitialization()} Method
  * can be used for waiting for Processor initalization errors.
  *
  * @author Christian Kaspari
