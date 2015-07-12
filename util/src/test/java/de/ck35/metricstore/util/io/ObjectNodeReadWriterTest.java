@@ -53,9 +53,11 @@ public class ObjectNodeReadWriterTest {
 		LOG.debug("Working on temp file: '{}'.", file);
 		try (ObjectNodeWriter writer = new ObjectNodeWriter(file, mapper.getFactory())) {
 			writer.write(node1);
-			writer.write(node2);
-			writer.write(node3);
 		}
+		try (ObjectNodeWriter writer = new ObjectNodeWriter(file, mapper.getFactory())) {
+            writer.write(node2);
+            writer.write(node3);
+        }
 		assertTrue(Files.size(file) > 0);
 		try (ObjectNodeReader reader = new ObjectNodeReader(file, mapper)) {
 			ObjectNode node1r = reader.read();

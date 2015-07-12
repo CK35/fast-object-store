@@ -3,6 +3,7 @@ package de.ck35.metricstore.util.io;
 import java.io.BufferedOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -59,6 +60,31 @@ public class ObjectNodeWriter implements Closeable {
 			throw new MetricsIOException("Could not create writer for: '" + path + "'!", e);
 		}
 	}
+	
+	public ObjectNodeWriter(OutputStream stream, JsonFactory factory, Charset charset) throws MetricsIOException {
+        this.path = null;
+        boolean closeOnError = true;
+        try {           
+            this.outputStream = new BufferedOutputStream(stream);
+            try {
+                OutputStreamWriter writer = new OutputStreamWriter(new GZIPOutputStream(outputStream), charset);
+                try {
+                    this.generator = factory.createGenerator(writer);
+                    closeOnError = false;
+                } finally {
+                    if(closeOnError) {
+                        writer.close();
+                    }
+                }
+            } finally {
+                if(closeOnError) {
+                    outputStream.close();
+                }
+            }
+        } catch(IOException e) {
+            throw new MetricsIOException("Could not create writer for: '" + path + "'!", e);
+        }
+    }
 
 	public void write(ObjectNode node) throws MetricsIOException {
 		try {
@@ -93,16 +119,33 @@ public class ObjectNodeWriter implements Closeable {
 		}
 	}
 	
-	public static class Factory implements Function<Path, ObjectNodeWriter> {
+	public static class PathFactory implements Function<Path, ObjectNodeWriter> {
 
 		private final JsonFactory jsonFactory;
+		private final Charset charset;
 		
-		public Factory(JsonFactory jsonFactory) {
+		public PathFactory(JsonFactory jsonFactory, Charset charset) {
 			this.jsonFactory = jsonFactory;
+            this.charset = charset;
 		}
 		@Override
 		public ObjectNodeWriter apply(Path input) {
-			return new ObjectNodeWriter(input, jsonFactory);
+			return new ObjectNodeWriter(input, jsonFactory, charset, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 		}
 	}
+	
+	public static class StreamFactory implements Function<OutputStream, ObjectNodeWriter> {
+
+        private final JsonFactory jsonFactory;
+        private final Charset charset;
+        
+        public StreamFactory(JsonFactory jsonFactory, Charset charset) {
+            this.jsonFactory = jsonFactory;
+            this.charset = charset;
+        }
+        @Override
+        public ObjectNodeWriter apply(OutputStream input) {
+            return new ObjectNodeWriter(input, jsonFactory, charset);
+        }
+    }
 }

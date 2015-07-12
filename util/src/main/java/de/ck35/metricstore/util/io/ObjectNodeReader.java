@@ -117,12 +117,12 @@ public class ObjectNodeReader implements Closeable {
 		}
 	}
 	
-	public static class Factory implements Function<Path, ObjectNodeReader> {
+	public static class PathFactory implements Function<Path, ObjectNodeReader> {
 
 		private final ObjectMapper mapper;
 		private final Charset charset;
 		
-		public Factory(ObjectMapper mapper, Charset charset) {
+		public PathFactory(ObjectMapper mapper, Charset charset) {
 			this.mapper = mapper;
             this.charset = charset;
 		}

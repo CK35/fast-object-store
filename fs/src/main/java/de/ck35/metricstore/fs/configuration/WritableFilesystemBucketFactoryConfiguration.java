@@ -56,12 +56,12 @@ public class WritableFilesystemBucketFactoryConfiguration {
 
     @Bean
     public Function<Path, ObjectNodeReader> readerFactory() {
-        return new ObjectNodeReader.Factory(mapper, Charsets.UTF_8);
+        return new ObjectNodeReader.PathFactory(mapper, Charsets.UTF_8);
     }
 
     @Bean
     public Function<Path, ObjectNodeWriter> writerFactory() {
-        return new ObjectNodeWriter.Factory(mapper.getFactory());
+        return new ObjectNodeWriter.PathFactory(mapper.getFactory(), Charsets.UTF_8);
     }
     
 }

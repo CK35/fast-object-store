@@ -69,8 +69,8 @@ public class FilesystemBucketTest {
 	@Before
 	public void before() throws IOException {
 		this.timestampFunction = new TimestampFunction();
-		this.writerFactory = new ObjectNodeWriter.Factory(mapper.getFactory());
-		this.readerFactory = new ObjectNodeReader.Factory(mapper, Charsets.UTF_8);
+		this.writerFactory = new ObjectNodeWriter.PathFactory(mapper.getFactory(), Charsets.UTF_8);
+		this.readerFactory = new ObjectNodeReader.PathFactory(mapper, Charsets.UTF_8);
 		this.writers = new LRUCache<>(5);
 		
 		Path workdir = Files.createTempDirectory("FilesystemBucketTest");

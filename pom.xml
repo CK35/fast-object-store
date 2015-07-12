@@ -43,7 +43,6 @@
 	
 	<modules>
 	   <module>api</module>
-	   <module>benchmark</module>
 	   <module>fs</module>
 	   <module>nonpersistent</module>
 	   <module>util</module>
