@@ -1,5 +1,7 @@
 package de.ck35.metricstore.fs;
 
+import java.util.Objects;
+
 import org.joda.time.Interval;
 import org.joda.time.LocalDate;
 
@@ -32,8 +34,8 @@ public class FilesystemMetricRepository implements MetricRepository {
 	
 	public FilesystemMetricRepository(Predicate<BucketCommand<?>> commands,
 	                                  Supplier<Integer> readBufferSizeSetting) {
-		this.commands = commands;
-        this.readBufferSizeSetting = readBufferSizeSetting;
+		this.commands = Objects.requireNonNull(commands);
+        this.readBufferSizeSetting = Objects.requireNonNull(readBufferSizeSetting);
 	}
 	
 	public <T extends BucketCommand<?>> T appendCommand(T command) {

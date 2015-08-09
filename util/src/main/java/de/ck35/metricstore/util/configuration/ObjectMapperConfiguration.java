@@ -17,7 +17,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 public class ObjectMapperConfiguration {
 
 	@Bean
-	public ObjectMapper objectMapper() {
+	public static ObjectMapper objectMapper() {
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.enable(SerializationFeature.FLUSH_AFTER_WRITE_VALUE);
 		mapper.getFactory().setRootValueSeparator(null);

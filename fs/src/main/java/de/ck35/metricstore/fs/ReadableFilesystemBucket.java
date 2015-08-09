@@ -61,7 +61,7 @@ public class ReadableFilesystemBucket implements MetricBucket {
 				if(Files.isRegularFile(dayFile)) {
 					try(StoredObjectNodeReader reader = createReader(dayFile)) {
 						read(current, end, reader, predicate);
-						current = current.withHourOfDay(23).withMinuteOfHour(59);
+						current = atEndOfDay(current);
 					}
 				} else {
 					Path minuteFile = pathFinder.getMinuteFilePath();
@@ -69,6 +69,16 @@ public class ReadableFilesystemBucket implements MetricBucket {
 						try(StoredObjectNodeReader reader = createReader(minuteFile)) {
 							current = read(current, end, reader, predicate);
 						}
+					} else {
+					    if(!Files.isDirectory(minuteFile.getParent())) { //Day folder does not exist
+					        current = atEndOfDay(current);
+					        if(!Files.isDirectory(minuteFile.getParent().getParent())) { //Month folder does not exist
+					            current = atEndOfMonth(current);
+					            if(!Files.isDirectory(minuteFile.getParent().getParent().getParent())) { //Year folder does not exist
+					                current = atEndOfYear(current);
+					            }
+					        }
+					    }
 					}
 				}
 			}
@@ -76,7 +86,7 @@ public class ReadableFilesystemBucket implements MetricBucket {
 			throw new MetricsIOException("Could not close a resource while reading from bucket: '" + bucketData + "'!", e);
 		}
 	}
-	
+
 	protected DateTime read(DateTime start, DateTime end, StoredObjectNodeReader reader, Predicate<StoredMetric> predicate) throws InterruptedException {
 		DateTime current = start;
 		for(StoredMetric next = reader.read() ; next != null ; next = reader.read()) {
@@ -106,4 +116,13 @@ public class ReadableFilesystemBucket implements MetricBucket {
 		return new PathFinder(date, bucketData.getBasePath());
 	}
 	
+	public static DateTime atEndOfYear(DateTime current) {
+        return current.withMonthOfYear(1).plusYears(1).minusDays(1);
+    }
+    public static DateTime atEndOfMonth(DateTime current) {
+        return current.withDayOfMonth(1).plusMonths(1).minusDays(1);
+    }
+    public static DateTime atEndOfDay(DateTime current) {
+        return current.withHourOfDay(23).withMinuteOfHour(59);
+    }
 }

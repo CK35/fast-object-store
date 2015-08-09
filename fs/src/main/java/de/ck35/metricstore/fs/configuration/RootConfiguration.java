@@ -7,9 +7,10 @@ import de.ck35.metricstore.util.configuration.ObjectMapperConfiguration;
 
 @Configuration
 @Import({ObjectMapperConfiguration.class,
+         WritableFilesystemBucketFactoryConfiguration.class,
          BucketCommandProcessorConfiguration.class,
          BucketCommandQueueConfiguration.class,
          FilesystemMetricRepositoryConfiguration.class,
-         TasksConfiguration.class,
-         WritableFilesystemBucketFactoryConfiguration.class})
+         TasksConfiguration.class
+         })
 public class RootConfiguration {}
