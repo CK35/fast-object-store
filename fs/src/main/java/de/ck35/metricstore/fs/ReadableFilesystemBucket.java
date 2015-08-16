@@ -117,7 +117,7 @@ public class ReadableFilesystemBucket implements MetricBucket {
 	}
 	
 	public static DateTime atEndOfYear(DateTime current) {
-        return current.withMonthOfYear(1).plusYears(1).minusDays(1);
+        return current.withMonthOfYear(1).withDayOfMonth(1).plusYears(1).minusDays(1);
     }
     public static DateTime atEndOfMonth(DateTime current) {
         return current.withDayOfMonth(1).plusMonths(1).minusDays(1);
