@@ -89,7 +89,7 @@ public class FilesystemMetricRepositoryTest {
         String bucketName = "a";
         String bucketType = "b";
         ObjectNode objectNode = new ObjectMapper().getNodeFactory().objectNode();
-        assertEquals(expected, filesystemMetricRepository().wirte(bucketName, bucketType, objectNode));
+        assertEquals(expected, filesystemMetricRepository().write(bucketName, bucketType, objectNode));
         assertTrue(commandAnswer.getCommand().isPresent());
         BucketCommand<?> bucketCommand = commandAnswer.getCommand().get();
         assertTrue(bucketCommand instanceof WriteCommand);

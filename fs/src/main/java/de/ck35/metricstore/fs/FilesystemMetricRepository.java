@@ -51,7 +51,7 @@ public class FilesystemMetricRepository implements MetricRepository {
 	}
 
 	@Override
-	public StoredMetric wirte(String bucketName, String bucketType, ObjectNode node) {
+	public StoredMetric write(String bucketName, String bucketType, ObjectNode node) {
 		return appendCommand(new WriteCommand(bucketName, bucketType, node)).getResult();
 	}
 

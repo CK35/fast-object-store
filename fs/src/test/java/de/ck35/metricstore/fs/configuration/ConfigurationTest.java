@@ -87,7 +87,7 @@ public class ConfigurationTest {
         node.put(TimestampFunction.DEFAULT_TIMESTAMP_FILED_NAME, TIMESTAMP.toString());
         node.put("a", "a1");
         
-        StoredMetric storedMetric = metricRepository.wirte(BUCKET_NAME, BUCKET_TYPE, node);
+        StoredMetric storedMetric = metricRepository.write(BUCKET_NAME, BUCKET_TYPE, node);
         assertEquals(TIMESTAMP, storedMetric.getTimestamp());
         assertEquals(node, storedMetric.getObjectNode());
         assertNotNull(storedMetric.getMetricBucket());
@@ -110,7 +110,7 @@ public class ConfigurationTest {
         
         String newBucketName = "NewBucket";
         String newBucketType = "NewBucketType";
-        StoredMetric storedMetric = metricRepository.wirte(newBucketName, newBucketType, node);
+        StoredMetric storedMetric = metricRepository.write(newBucketName, newBucketType, node);
         assertEquals(TIMESTAMP, storedMetric.getTimestamp());
         assertEquals(node, storedMetric.getObjectNode());
         assertNotNull(storedMetric.getMetricBucket());

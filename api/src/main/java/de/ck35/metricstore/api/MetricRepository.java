@@ -38,6 +38,6 @@ public interface MetricRepository {
 	 * @param node The metric data object to write.
 	 * @return A reference to the stored metric data object node.
 	 */
-	StoredMetric wirte(String bucketName, String bucketType, ObjectNode node);
+	StoredMetric write(String bucketName, String bucketType, ObjectNode node);
 	
 }

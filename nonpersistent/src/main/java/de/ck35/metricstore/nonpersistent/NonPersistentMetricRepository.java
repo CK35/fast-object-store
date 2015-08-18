@@ -39,7 +39,7 @@ public class NonPersistentMetricRepository implements MetricRepository {
     }
 
     @Override
-    public StoredMetric wirte(String bucketName, String bucketType, ObjectNode node) {
+    public StoredMetric write(String bucketName, String bucketType, ObjectNode node) {
         MetricBucket metricBucket = buckets.get(bucketName);
         if(metricBucket == null) {
             MetricBucket newBucket = new ImmutableMetricBucket(bucketName, bucketType);

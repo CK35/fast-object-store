@@ -40,7 +40,7 @@ public class NonPersistentMetricRepositoryTest {
     public void testListBuckets() {
         String bucketName = "my-test-bucket";
         String bucketType = "my-test-bucket-type";
-        metricRepository.wirte(bucketName, bucketType, node(timestamp));
+        metricRepository.write(bucketName, bucketType, node(timestamp));
         for(MetricBucket bucket : metricRepository.listBuckets()) {
             if(bucketName.equals(bucket.getName()) && bucketType.equals(bucket.getType())) {
                 return;
@@ -54,7 +54,7 @@ public class NonPersistentMetricRepositoryTest {
         String bucketName = "my-test-bucket";
         String bucketType = "my-test-bucket-type";
         ObjectNode node = node(timestamp);
-        StoredMetric storedMetric = metricRepository.wirte(bucketName, bucketType, node);
+        StoredMetric storedMetric = metricRepository.write(bucketName, bucketType, node);
         assertNotNull(storedMetric);
         assertNotNull(storedMetric.getMetricBucket());
         assertEquals(bucketName, storedMetric.getMetricBucket().getName());
